@@ -21,3 +21,10 @@ Write imperative commits ("Add ingestion retry jitter") and keep config edits do
 
 ## Security & Configuration Tips
 Never commit `.env`, Google credentials, or Datadog keys. Reference secrets via Secret Manager in deployment manifests, and use `gcloud auth application-default login` only for local smoke tests. When sharing dashboards or Firestore snapshots, sanitize tenant data and store fixtures under `tests/data/`.
+
+## Active Technologies
+- Python 3.11 + `datadog-api-client` (Python), Google Cloud client libraries (Firestore, Secret Manager), HTTP client, retry/backoff helper (001-capture-datadog-failures)
+- Firestore collection `evalforge_raw_traces` (with prefixed collection name via `FIRESTORE_COLLECTION_PREFIX`) (001-capture-datadog-failures)
+
+## Recent Changes
+- 001-capture-datadog-failures: Added Python 3.11 + `datadog-api-client` (Python), Google Cloud client libraries (Firestore, Secret Manager), HTTP client, retry/backoff helper
