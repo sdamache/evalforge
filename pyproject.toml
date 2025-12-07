@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evalforge"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+  "datadog-api-client",
+  "google-cloud-firestore",
+  "google-cloud-secret-manager",
+  "tenacity",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+]
