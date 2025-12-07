@@ -15,8 +15,8 @@ This feature introduces an ingestion service that regularly pulls LLM failure tr
 **Testing**: pytest with integration tests against real Datadog and Vertex AI/Gemini where feasible, plus cached golden responses for CI cost control  
 **Target Platform**: Google Cloud Run (stateless service, HTTPS ingress)
 **Project Type**: Single backend service within existing Python project  
-**Performance Goals**: Ingestion run completes within the 15-minute Cloud Scheduler window; per-trace processing keeps overall Datadog query + Firestore writes within a few minutes for 24h lookback  
-**Constraints**: Respect Datadog rate limits (300 requests/minute), pattern extraction <10s per trace, no single ingestion run should exceed cost budget defined for this service  
+**Performance Goals**: [NEEDS CLARIFICATION: Validate expected ingestion latency and throughput targets after Datadog spike; current assumption is that each 15-minute run can process a 24h lookback without exceeding Cloud Run limits.]  
+**Constraints**: [NEEDS CLARIFICATION: Confirm Datadog rate limits for our tier (assumed 300 requests/minute) and how they interact with Cloud Scheduler cadence and backoff strategy.]  
 **Scale/Scope**: Initial focus on a manageable subset of LLM agents (single Datadog service tag), expandable to more services after validating performance and cost
 
 ## Constitution Check
