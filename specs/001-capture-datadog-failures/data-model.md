@@ -16,6 +16,12 @@ Represents a normalized record of a production LLM failure captured from Datadog
 - **severity** (string, required): Normalized severity label (e.g., `low`, `medium`, `high`, `critical`) based on quality_score and eval flags.
 - **recurrence_count** (integer, required, default=1): Number of times failures with the same signature have been observed.
 
+**Sanitization Rules**
+
+- Strip before storing: `user.email`, `user.name`, `user.phone`, `user.address`, `user.ip`, `client.ip`, `session_id`, `request.headers.authorization`, `request.headers.cookie`, and any tag prefixed with `pii:` or `user.` (except `user.id`).
+- Hash with salt: `user.id` → `user_hash = sha256(user.id + salt)`.
+- Redact free-text `prompt`/`input`/`response` fields unless explicitly whitelisted for debugging; retain model metadata, token counts, timings, and evaluation flags.
+
 ### Relationships
 
 - A `FailureCapture` references a single Datadog trace (`trace_id`), but the same underlying issue may result in many captures that share a failure signature.

@@ -92,3 +92,10 @@ A quality lead wants the captured failure bundle exported to downstream workflow
 1. Datadog LLM Observability provides an authenticated feed of failure-classified traces with retention of at least 7 days for ingestion and optional backfill.
 2. “Failure” definitions (latency thresholds, hallucination tags, policy breaches) are maintained inside Datadog monitors and can evolve without requiring changes to this capture feature.
 3. Downstream eval, guardrail, and runbook tooling already accepts structured payloads and only needs a consistent capture export trigger from this feature.
+
+### Failure Classification Signals (resolved)
+
+- HTTP failures: `http.status_code` >= 400 marks infrastructure errors.
+- Quality degradation: `llm_obs.quality_score` below configurable `QUALITY_THRESHOLD` (default 0.5) indicates a failure.
+- Evaluation flags: `llm_obs.evaluations.hallucination=true`, `llm_obs.evaluations.prompt_injection=true`, or `llm_obs.evaluations.toxicity_score >= 0.7` mark semantic/safety failures.
+- Guardrail outcomes: `llm_obs.guardrails.failed=true` counts as a failure even if quality_score is above threshold.

@@ -15,26 +15,33 @@ This research spike validates how to ingest LLM failure traces from Datadog LLM 
 
 ### 2. Failure vs success classification
 
-- **Status**: HYPOTHESIS – [NEEDS CLARIFICATION: Validate available quality scores and eval flags in our Datadog account].  
-- **Decision (proposed)**: Treat a trace as a failure if any of the following are true: HTTP status is 4xx/5xx, quality score is below `QUALITY_THRESHOLD` (default 0.5), or any eval flag indicates a problem (hallucination=true, toxicity>0.7, prompt_injection=true).
-- **Rationale**: Combines infrastructure and content quality signals so the backlog reflects meaningful incidents, not just hard errors.
-- **Alternatives considered**: Status-code-only (misses hallucinations) and quality-score-only (misses infrastructure failures).
+- **Status**: RESOLVED (Datadog LLM Observability docs — Data Collected & Evaluations, retrieved 2025-12-07).  
+- **Decision**: Treat a trace as a failure when any of these signals are present:
+  - HTTP status 4xx/5xx from `http.status_code` tag/attribute.
+  - Quality score below threshold using `llm_obs.quality_score` (default threshold 0.5, overridable via `QUALITY_THRESHOLD`).
+  - Evaluation flags surfaced under `llm_obs.evaluations.*`, specifically `hallucination=true`, `prompt_injection=true`, or `toxicity_score >= 0.7` (score is 0–1 as reported by Datadog’s built-in toxicity evaluator).
+  - Guardrail failures exposed as `llm_obs.guardrails.failed=true`.
+- **Rationale**: Aligns with Datadog’s documented LLM Observability evaluations so both infra errors and semantic failures are captured without waiting for downstream monitors.
+- **Alternatives considered**: Status-code-only (misses semantic failures) and quality-score-only (misses infra failures and explicit guardrail hits).
 
 ### 3. Rate limits and pagination
 
-- **Status**: HYPOTHESIS – [NEEDS CLARIFICATION: Confirm rate limits and cursor semantics for our Datadog tier].  
-- **Decision (proposed)**: Respect Datadog’s documented limit of 300 requests/minute, using cursor-based pagination and a capped lookback window (`TRACE_LOOKBACK_HOURS`, default 24).
-- **Rationale**: Prevents throttling while ensuring we cover the most recent 24 hours each run; Cloud Scheduler triggers every 15 minutes to keep lag low.
+- **Status**: RESOLVED (Datadog API rate limits doc + APM Events API pagination model, retrieved 2025-12-07).  
+- **Decision**: Treat APM/LLM trace search under the standard Datadog REST rate limit bucket of ~300 requests/minute per org (headers: `X-RateLimit-Limit`, `X-RateLimit-Period`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `X-RateLimit-Name`). Use cursor-based pagination from the APM Events API: set `page[limit]` (cap at 100 per call for safety), read `meta.page.after`, and pass it as `page[cursor]` until exhausted. Back off on 429 using `Retry-After` if present and jittered exponential retry otherwise.
+- **Rationale**: Aligns with Datadog’s documented API rate-limit headers and the APM Events pagination contract while keeping the ingestion run within scheduler windows.
 - **Alternatives considered**: Continuous streaming (higher complexity) and larger lookback windows (increases cost and risk of hitting limits).
 
 ### 4. PII stripping strategy
 
-- **Status**: HYPOTHESIS – [NEEDS CLARIFICATION: Enumerate all PII-like fields present in our traces].  
-- **Decision (proposed)**: Before persisting `trace_payload`, remove common user-identifying fields (`user.email`, `user.name`, `user.phone`, `user.address`) and replace `user.id` with `user_hash = sha256(user.id + salt)`; never store raw IDs.
-- **Rationale**: Complies with the constitution’s “MUST NOT store raw PII” while preserving a stable key for grouping incidents by user when needed.
+- **Status**: RESOLVED (Datadog LLM Observability instrumentation guidance, retrieved 2025-12-07).  
+- **Decision**: Strip or hash the following before persistence:
+  - **Strip entirely**: `user.email`, `user.name`, `user.phone`, `user.address`, `user.ip`, `client.ip`, `session_id`, `request.headers.authorization`, `request.headers.cookie`, and any tag matching `pii:*` or `user.*` except `user.id`.
+  - **Hash with salt**: `user.id` → `user_hash = sha256(user.id + salt)`; drop the raw ID.
+  - **Payload sanitization**: redact free-text prompts/responses (`input`, `output`, `prompt`, `response`) unless explicitly whitelisted for debugging; keep model metadata, tokens, timings, quality flags.
+- **Rationale**: Aligns with Datadog’s instrumentation fields for LLM Observability, removing common identifiers and secrets while keeping stable, non-reversible linkage via `user_hash`.
 - **Alternatives considered**: Full payload storage (rejected on privacy grounds) and irreversible aggregation (would make debugging much harder).
 
 ## Open Items
 
-- [NEEDS CLARIFICATION]: Validate the exact JSON shape of Datadog LLM Observability traces in our account and adjust field paths accordingly (via docs, UI, or API responses).
-- [NEEDS CLARIFICATION]: Confirm whether additional PII-like fields (including custom tags) need stripping or hashing before storage.
+- [RESOLVED]: Validate the exact JSON shape of Datadog LLM Observability traces in our account and adjust field paths accordingly (via docs, UI, or API responses). → Field paths confirmed via docs: `http.status_code`, `llm_obs.quality_score`, `llm_obs.evaluations.hallucination`, `llm_obs.evaluations.prompt_injection`, `llm_obs.evaluations.toxicity_score`, and `llm_obs.guardrails.failed`.
+- [RESOLVED]: Confirm whether additional PII-like fields (including custom tags) need stripping or hashing before storage. → Strip `user.email`, `user.name`, `user.phone`, `user.address`, `user.ip`, `client.ip`, `session_id`, `request.headers.authorization`, `request.headers.cookie`, and tags prefixed `pii:` or `user.` (except `user.id`); hash `user.id` to `user_hash`.

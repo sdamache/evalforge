@@ -46,15 +46,15 @@ description: "Task list for Automatic Capture of Datadog Failures"
 ### Research & Clarifications (Phase 0 alignment)
 
 - [x] T004 Resolve Datadog trace schema hypothesis by inspecting LLM Observability traces and updating `specs/001-capture-datadog-failures/research.md` to replace the trace-field [NEEDS CLARIFICATION] markers with confirmed fields.
-- [ ] T005 [P] Validate failure classification signals (status codes, quality_score, eval flags) against Datadog docs/UI and update `specs/001-capture-datadog-failures/research.md` and `specs/001-capture-datadog-failures/spec.md` to resolve the classification-related [NEEDS CLARIFICATION] markers.
-- [ ] T006 [P] Confirm Datadog rate limits and pagination semantics for the project’s tier and update `specs/001-capture-datadog-failures/plan.md` to resolve the Performance Goals and Constraints [NEEDS CLARIFICATION] entries.
-- [ ] T007 [P] Enumerate all PII-like fields in Datadog LLM traces and update PII stripping rules in `specs/001-capture-datadog-failures/research.md` and `specs/001-capture-datadog-failures/data-model.md` to fully specify the sanitizer behavior.
+ - [x] T005 [P] Validate failure classification signals (status codes, quality_score, eval flags) against Datadog docs/UI and update `specs/001-capture-datadog-failures/research.md` and `specs/001-capture-datadog-failures/spec.md` to resolve the classification-related [NEEDS CLARIFICATION] markers.
+ - [x] T006 [P] Confirm Datadog rate limits and pagination semantics for the project’s tier and update `specs/001-capture-datadog-failures/plan.md` to resolve the Performance Goals and Constraints [NEEDS CLARIFICATION] entries.
+ - [x] T007 [P] Enumerate all PII-like fields in Datadog LLM traces and update PII stripping rules in `specs/001-capture-datadog-failures/research.md` and `specs/001-capture-datadog-failures/data-model.md` to fully specify the sanitizer behavior.
 
 ### Shared Models & Infrastructure
 
-- [ ] T008 Define `FailureCapture`, `SourceTraceReference`, and `ExportPackage` domain models in `src/ingestion/models.py` following `specs/001-capture-datadog-failures/data-model.md`.
-- [ ] T009 Configure structured logging helpers (trace IDs, decision logs, error logs) in `src/common/logging.py` according to the Evalforge constitution.
-- [ ] T010 Implement configuration loader in `src/common/config.py` to read Datadog, Firestore, and scheduler settings from environment variables defined in `specs/001-capture-datadog-failures/quickstart.md`.
+ - [x] T008 Define `FailureCapture`, `SourceTraceReference`, and `ExportPackage` domain models in `src/ingestion/models.py` following `specs/001-capture-datadog-failures/data-model.md`.
+ - [x] T009 Configure structured logging helpers (trace IDs, decision logs, error logs) in `src/common/logging.py` according to the Evalforge constitution.
+ - [x] T010 Implement configuration loader in `src/common/config.py` to read Datadog, Firestore, and scheduler settings from environment variables defined in `specs/001-capture-datadog-failures/quickstart.md`.
 
 **Checkpoint**: Research hypotheses resolved, core models and shared utilities ready — User Story implementation can now begin.
 
