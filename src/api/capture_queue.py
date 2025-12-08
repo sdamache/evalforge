@@ -69,3 +69,36 @@ def query_failure_captures(
         next_cursor = records[-1].get("fetched_at")
 
     return records, next_cursor
+
+
+def group_failures(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Group failures by signature (failure_type, service_name, severity) and sum recurrence.
+    """
+    grouped: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    for rec in records:
+        key = (
+            rec.get("failure_type", ""),
+            rec.get("service_name", ""),
+            rec.get("severity", ""),
+        )
+        entry = grouped.setdefault(
+            key,
+            {
+                "failure_type": rec.get("failure_type", ""),
+                "service_name": rec.get("service_name", ""),
+                "severity": rec.get("severity", ""),
+                "recurrence_count": 0,
+                "latest_fetched_at": rec.get("fetched_at"),
+                "trace_ids": [],
+            },
+        )
+        entry["recurrence_count"] += rec.get("recurrence_count", 1)
+        fetched_at = rec.get("fetched_at")
+        if fetched_at and (entry["latest_fetched_at"] is None or fetched_at > entry["latest_fetched_at"]):
+            entry["latest_fetched_at"] = fetched_at
+        trace_id = rec.get("trace_id")
+        if trace_id:
+            entry["trace_ids"].append(trace_id)
+
+    return list(grouped.values())

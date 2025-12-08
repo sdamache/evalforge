@@ -36,12 +36,16 @@ def test_capture_queue_filters(monkeypatch):
                     "fetched_at": "2025-01-02T00:00:00+00:00",
                     "severity": "high",
                     "service_name": "agent-a",
+                    "failure_type": "hallucination",
+                    "recurrence_count": 1,
                 },
                 {
                     "trace_id": "t2",
                     "fetched_at": "2025-01-01T18:00:00+00:00",
-                    "severity": "medium",
-                    "service_name": "agent-b",
+                    "severity": "high",
+                    "service_name": "agent-a",
+                    "failure_type": "hallucination",
+                    "recurrence_count": 2,
                 },
             ],
             "cursor-123",
@@ -67,10 +71,15 @@ def test_capture_queue_filters(monkeypatch):
         },
     )
 
-    # When implemented, endpoint should succeed and return filtered items + cursor.
+    # Endpoint should succeed and return grouped items + cursor.
     assert resp.status_code == 200
     body = resp.json()
-    assert body["items"][0]["trace_id"] == "t1"
+    item = body["items"][0]
+    assert item["failure_type"] == "hallucination"
+    assert item["service_name"] == "agent-a"
+    assert item["severity"] == "high"
+    assert item["recurrence_count"] == 3
+    assert set(item["trace_ids"]) == {"t1", "t2"}
     assert body["nextCursor"] == "cursor-123"
 
     call = calls[0]
