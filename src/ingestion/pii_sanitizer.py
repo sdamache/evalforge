@@ -11,6 +11,8 @@ PII_FIELDS_TO_STRIP = {
     "user.name",
     "user.phone",
     "user.address",
+    "user.id",
+    "user.user_id",
     "user.ip",
     "client.ip",
     "session_id",
@@ -44,19 +46,19 @@ def sanitize_trace(trace: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
     """
     payload = dict(trace.get("trace_payload", {}))
     salt = os.getenv("PII_SALT", "evalforge")
-    user_hash = ""
+
+    user_id = None
+    user_container = payload.get("user") if isinstance(payload.get("user"), dict) else trace.get("user")
+    if isinstance(user_container, dict):
+        user_id = user_container.get("id") or user_container.get("user_id")
+    elif isinstance(trace.get("user"), dict):
+        user_id = trace["user"].get("id") or trace["user"].get("user_id")
 
     # Strip configured fields
     for dotted in PII_FIELDS_TO_STRIP:
         _strip_nested(payload, dotted)
 
-    # Hash user.id if present
-    user = payload.get("user") if isinstance(payload.get("user"), dict) else trace.get("user")
-    user_id = None
-    if isinstance(user, dict):
-        user_id = user.get("id") or user.get("user_id")
-    elif isinstance(trace.get("user"), dict):
-        user_id = trace["user"].get("id") or trace["user"].get("user_id")
+    user_hash = ""
 
     if user_id:
         user_hash = _hash_user_id(str(user_id), salt)

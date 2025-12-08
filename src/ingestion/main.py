@@ -36,7 +36,9 @@ def deduplicate_by_trace_id(traces: List[Dict[str, Any]]) -> List[Dict[str, Any]
         if tid in seen:
             seen[tid]["recurrence_count"] = seen[tid].get("recurrence_count", 1) + 1
         else:
-            seen[tid] = trace
+            first = dict(trace)
+            first["recurrence_count"] = first.get("recurrence_count", 1)
+            seen[tid] = first
     return list(seen.values())
 
 

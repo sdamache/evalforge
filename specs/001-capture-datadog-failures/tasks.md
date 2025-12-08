@@ -133,7 +133,7 @@ description: "Task list for Automatic Capture of Datadog Failures"
 **Purpose**: Improvements that affect multiple user stories, including documentation, performance, security, and UX.
 
  - [x] T031 [P] Add ingestion and queue documentation pages summarizing flows and configuration in `docs/ingestion.md` and `docs/failure_queue.md`.
-- [ ] T032 [P] Add additional unit tests for PII edge cases and deduplication logic in `tests/unit/test_pii_sanitizer.py` and `tests/unit/test_deduplication_logic.py`.
+ - [x] T032 [P] Add additional unit tests for PII edge cases and deduplication logic in `tests/unit/test_pii_sanitizer.py` and `tests/unit/test_deduplication_logic.py`.
 - [ ] T033 Measure and optimize ingestion performance (latency and throughput) by profiling `src/ingestion/main.py` and `src/ingestion/datadog_client.py`.
 - [ ] T034 Harden security and secret handling by reviewing uses of configuration and environment variables in `src/common/config.py` and `src/ingestion/main.py`.
 - [ ] T035 Run through `specs/001-capture-datadog-failures/quickstart.md` end-to-end and fix any discrepancies in configuration or commands.
