@@ -4,7 +4,7 @@
 The Incident-to-Insight Loop lives under the `evalforge/` tree with Python 3.11 modules in `src/`. Services are separated by concern: `src/ingestion` handles Datadog trace pulls, `src/extraction` performs Gemini-powered pattern work, `src/generators` emits eval, guardrail, and runbook artifacts, `src/api` exposes the approval REST surface, `src/dashboard` publishes Datadog widgets, and `src/common` houses shared helpers. Tests mirror this layout under `tests/`, `docs/` holds specs and runbooks, and `scripts/` packages recurring automation. Infrastructure ships alongside application code: Dockerfile plus `docker-compose.yml` define the local stack and `.github/workflows/` enforces CI gates.
 
 ## Build, Test, and Development Commands
-- `python -m venv venv && source venv/bin/activate` sets up the interpreter; keep the venv active for tooling.
+- `python -m venv evalforge_venv && source evalforge_venv/bin/activate` sets up the interpreter; keep the evalforge_venv active for tooling.
 - `pip install -e ".[dev]"` installs runtime and dev extras so editable imports work across modules.
 - `cp .env.example .env` seeds configuration; add Datadog, Firestore, and Vertex values before any run.
 - `docker-compose up` boots ingestion, API, and Firestore emulator exactly as CI orchestrates them.
