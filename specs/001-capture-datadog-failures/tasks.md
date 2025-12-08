@@ -135,8 +135,16 @@ description: "Task list for Automatic Capture of Datadog Failures"
  - [x] T031 [P] Add ingestion and queue documentation pages summarizing flows and configuration in `docs/ingestion.md` and `docs/failure_queue.md`.
  - [x] T032 [P] Add additional unit tests for PII edge cases and deduplication logic in `tests/unit/test_pii_sanitizer.py` and `tests/unit/test_deduplication_logic.py`.
  - [x] T033 Measure and optimize ingestion performance (latency and throughput) by profiling `src/ingestion/main.py` and `src/ingestion/datadog_client.py`.
-- [x] T034 Harden security and secret handling by reviewing uses of configuration and environment variables in `src/common/config.py` and `src/ingestion/main.py`.
-- [x] T035 Run through `specs/001-capture-datadog-failures/quickstart.md` end-to-end and fix any discrepancies in configuration or commands.
+ - [x] T034 Harden security and secret handling by reviewing uses of configuration and environment variables in `src/common/config.py` and `src/ingestion/main.py`.
+ - [x] T035 Run through `specs/001-capture-datadog-failures/quickstart.md` end-to-end and fix any discrepancies in configuration or commands.
+
+### Additional Hardening (Hackathon follow-ups)
+
+ - [x] T036 [P] Surface ingestion health signals (last sync, backlog size, error reasons, rate-limit state) via `/health` and metrics in `src/ingestion/main.py` and `src/api/main.py`, with coverage in `tests/integration/test_ingestion_datadog_firehose.py`.
+ - [x] T037 [P] Persist and expose capture status history (timestamps + actor) in `src/ingestion/models.py` and queue/export APIs in `src/api/main.py`, with assertions in `tests/integration/test_failure_queue_api.py`.
+ - [ ] T038 [P] Handle rate-limit (429) and credential-loss failures gracefully with backoff, plus explicit empty-state and backfill coverage messages in queue/export responses in `src/ingestion/main.py` and `src/api/main.py`, validated in integration tests.
+ - [ ] T039 [P] Document new NFRs (latency SLO, observability, cost, PII handling) and configurables (`INGESTION_LATENCY_MINUTES`, rate-limit/backoff settings) in `specs/001-capture-datadog-failures/quickstart.md` and `specs/001-capture-datadog-failures/research.md`.
+ - [ ] T040 [P] Document deferred 90-day audit retention and confirm structured lifecycle logs exist now (no code change if already present).
 
 ---
 

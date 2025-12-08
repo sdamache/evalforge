@@ -58,6 +58,10 @@ A quality lead wants the captured failure bundle exported to downstream workflow
 - Zero failures detected during a period — system should show “no incidents” without implying connectivity issues.
 - Duplicate signals for the same trace arriving minutes apart — capture must merge rather than spam reviewers.
 - Historical backfill requested for a past window — service should note partial coverage if Datadog retention has expired.
+- Datadog returns 429s — ingestion applies backoff with observability of rate-limit state and resumes without dropping captures.
+- Credentials expire mid-run — ingestion halts safely, emits explicit auth errors, and reports backlog remaining.
+- Reviewer sees an empty queue — UI/API returns an explicit “no incidents in range” message, not an error.
+- Backfill results contain gaps — export surfaces partial coverage notices tied to Datadog retention windows.
 
 ## Requirements *(mandatory)*
 
@@ -68,9 +72,16 @@ A quality lead wants the captured failure bundle exported to downstream workflow
 - **FR-003**: Reviewers MUST be able to view, search, and filter the capture queue by time range, severity, agent name, and recurrence count.
 - **FR-004**: System MUST deduplicate captures that reference the same trace or signature within a configurable time window while keeping recurrence counts and latest context.
 - **FR-005**: Reviewers MUST be able to mark capture status (e.g., new, triaged, exported) and see history of status changes.
-- **FR-006**: System MUST surface ingestion health (last successful sync, backlog size, error reasons) so engineers can detect gaps quickly.
+- **FR-006**: System MUST surface ingestion health (last successful sync, backlog size, error reasons, rate-limit state) so engineers can detect gaps quickly.
 - **FR-007**: System MUST provide an export action that packages capture details for downstream improvement workflows (evals, guardrails, runbooks) with delivery confirmation or actionable failure messaging.
-- **FR-008**: System MUST maintain an audit log of capture creation, updates, exports, and ingestion failures for at least 90 days to enable compliance reviews.
+- **FR-008**: System MUST maintain an audit log of capture creation, updates, exports, and ingestion failures; hackathon scope implements structured lifecycle logs with a follow-up task to enforce 90-day retention.
+
+### Non-Functional Requirements
+
+- **Latency**: 95% of Datadog failure signals are captured and visible to reviewers within `INGESTION_LATENCY_MINUTES` (default 5) of being marked failed; queue, list, and export endpoints respond within 2 seconds for default page sizes.
+- **Observability**: Structured logs, metrics, and traces cover scheduler triggers, Datadog calls (including rate-limit headers), dedup decisions, writes, exports, and empty states; health signals expose last sync, backlog, and error reasons.
+- **Security & PII**: PII fields are stripped or hashed before persistence; secrets come only from Secret Manager; no raw PII is logged.
+- **Cost**: Each ingestion/export run targets <$0.10 with fallbacks (cached/golden data or reduced lookback) if forecasts exceed the budget; cost-impacting decisions are logged.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -82,7 +93,7 @@ A quality lead wants the captured failure bundle exported to downstream workflow
 
 ### Measurable Outcomes
 
-- **SC-001**: 95% of Datadog failure signals are captured and visible to reviewers within 5 minutes of the trace being marked failed.
+- **SC-001**: 95% of Datadog failure signals are captured and visible to reviewers within `INGESTION_LATENCY_MINUTES` of the trace being marked failed (default 5 minutes, configurable).
 - **SC-002**: Duplicate entries for the same underlying issue account for less than 5% of the capture queue (measured weekly).
 - **SC-003**: 90% of reviewed captures include sufficient metadata for downstream eval, guardrail, or runbook creation without reopening Datadog traces.
 - **SC-004**: After launch, the engineering team reports at least a 30% reduction in “repeat incident” investigations for the monitored agents over one month.
