@@ -98,7 +98,7 @@ description: "Task list for Automatic Capture of Datadog Failures"
 ### Implementation for User Story 2
 
  - [x] T021 [P] [US2] Implement Firestore query helper to read and filter `FailureCapture` documents with support for time range, severity, and agent filters in `src/api/capture_queue.py`.
-- [ ] T022 [US2] Implement capture queue API endpoint to return grouped failures with recurrence counts and status fields in `src/api/main.py`.
+ - [x] T022 [US2] Implement capture queue API endpoint to return grouped failures with recurrence counts and status fields in `src/api/main.py`.
 - [ ] T023 [US2] Implement grouping and recurrence counting logic for related failures (same signature) in `src/api/capture_queue.py`.
 - [ ] T024 [US2] Add pagination and error handling for the capture queue endpoint in `src/api/main.py`.
 

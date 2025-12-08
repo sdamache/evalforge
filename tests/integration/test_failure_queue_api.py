@@ -4,7 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.mark.xfail(reason="capture queue API not implemented yet")
 def test_capture_queue_filters(monkeypatch):
     from src.api import main as api_main
 
