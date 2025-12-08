@@ -62,23 +62,27 @@ def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
         if not trace_id:
             log_error(logger, "Skipping event without trace_id", trace_id=None)
             continue
-        sanitized_payload, user_hash = pii_sanitizer.sanitize_trace(event)
-        capture = FailureCapture(
-            trace_id=trace_id,
-            fetched_at=datetime.now(tz=timezone.utc),
-            failure_type=event.get("failure_type", "unknown"),
-            trace_payload=sanitized_payload,
-            service_name=event.get("service_name", ""),
-            severity=event.get("severity", ""),
-            status_code=event.get("status_code"),
-            quality_score=event.get("quality_score"),
-            user_hash=user_hash if user_hash else None,
-            processed=False,
-            recurrence_count=event.get("recurrence_count", 1),
-        )
-        _write_failure(fs_client, collection_name, capture)
-        log_decision(logger, trace_id=trace_id, action="ingest", outcome="written")
-        written += 1
+        try:
+            sanitized_payload, user_hash = pii_sanitizer.sanitize_trace(event)
+            capture = FailureCapture(
+                trace_id=trace_id,
+                fetched_at=datetime.now(tz=timezone.utc),
+                failure_type=event.get("failure_type", "unknown"),
+                trace_payload=sanitized_payload,
+                service_name=event.get("service_name", ""),
+                severity=event.get("severity", ""),
+                status_code=event.get("status_code"),
+                quality_score=event.get("quality_score"),
+                user_hash=user_hash if user_hash else None,
+                processed=False,
+                recurrence_count=event.get("recurrence_count", 1),
+            )
+            _write_failure(fs_client, collection_name, capture)
+            log_decision(logger, trace_id=trace_id, action="ingest", outcome="written")
+            written += 1
+        except Exception as exc:  # capture-level errors should not halt the batch
+            log_error(logger, "Failed to process trace", error=exc, trace_id=trace_id)
+            continue
     return written
 
 

@@ -14,6 +14,7 @@ from datadog_api_client.v2.model.spans_list_request_type import SpansListRequest
 from datadog_api_client.v2.model.spans_query_filter import SpansQueryFilter
 from datadog_api_client.v2.model.spans_query_options import SpansQueryOptions
 from datadog_api_client.v2.model.spans_sort import SpansSort
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.common.config import Settings, load_settings
 from src.common.logging import get_logger, log_error
@@ -71,6 +72,12 @@ def _create_api(settings: Settings) -> SpansApi:
     return SpansApi(api_client)
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=8),
+    retry=retry_if_exception_type(Exception),
+    reraise=True,
+)
 def fetch_recent_failures(
     *,
     trace_lookback_hours: Optional[int] = None,
@@ -96,8 +103,18 @@ def fetch_recent_failures(
 
     events: List[Dict[str, Any]] = []
     try:
+        logger.info(
+            "query_datadog",
+            extra={
+                "event": "datadog_query",
+                "lookback_hours": lookback,
+                "quality_threshold": quality,
+                "service_name": service_name,
+            },
+        )
         for span in api.list_spans_with_pagination(body=request):
             events.append(span.to_dict() if hasattr(span, "to_dict") else dict(span))
+        logger.info("datadog_query_success", extra={"event": "datadog_query_success", "count": len(events)})
     except Exception as exc:  # broad catch to surface in structured logs
         log_error(logger, "Failed to fetch Datadog failures", error=exc)
         raise

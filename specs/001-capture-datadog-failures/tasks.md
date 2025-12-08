@@ -78,7 +78,7 @@ description: "Task list for Automatic Capture of Datadog Failures"
  - [x] T015 [US1] Implement ingestion orchestration to pull failures from Datadog, deduplicate by `trace_id`, and write `FailureCapture` docs to Firestore in `src/ingestion/main.py`.
  - [x] T016 [US1] Implement `/ingestion/run-once` HTTP handler matching `specs/001-capture-datadog-failures/contracts/ingestion-openapi.yaml` in `src/ingestion/main.py`.
  - [x] T017 [US1] Implement `/health` endpoint that reports connectivity to Datadog and Firestore and basic service status in `src/ingestion/main.py`.
-- [ ] T018 [US1] Add structured logging and error handling (including retry/backoff outcomes) for each ingestion decision in `src/ingestion/main.py` and `src/ingestion/datadog_client.py`.
+ - [x] T018 [US1] Add structured logging and error handling (including retry/backoff outcomes) for each ingestion decision in `src/ingestion/main.py` and `src/ingestion/datadog_client.py`.
 - [ ] T019 [US1] Ensure ingestion respects `TRACE_LOOKBACK_HOURS` and `QUALITY_THRESHOLD` configuration values via `src/common/config.py` and is wired into the Cloud Scheduler trigger path.
 
 **Checkpoint**: User Story 1 fully functional — Datadog failures are automatically captured into Firestore and verifiable via tests.
