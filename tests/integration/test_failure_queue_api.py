@@ -38,6 +38,11 @@ def test_capture_queue_filters(monkeypatch):
                     "service_name": "agent-a",
                     "failure_type": "hallucination",
                     "recurrence_count": 1,
+                    "status": "triaged",
+                    "status_history": [
+                        {"status": "new", "actor": "ingestion", "timestamp": "2025-01-01T00:00:00Z"},
+                        {"status": "triaged", "actor": "reviewer", "timestamp": "2025-01-02T00:00:00Z"},
+                    ],
                 },
                 {
                     "trace_id": "t2",
@@ -46,6 +51,8 @@ def test_capture_queue_filters(monkeypatch):
                     "service_name": "agent-a",
                     "failure_type": "hallucination",
                     "recurrence_count": 2,
+                    "status": "new",
+                    "status_history": [{"status": "new", "actor": "ingestion", "timestamp": "2025-01-01T00:00:00Z"}],
                 },
             ],
             "cursor-123",
@@ -80,6 +87,8 @@ def test_capture_queue_filters(monkeypatch):
     assert item["severity"] == "high"
     assert item["recurrence_count"] == 3
     assert set(item["trace_ids"]) == {"t1", "t2"}
+    assert item["status"] == "triaged"
+    assert any(entry.get("status") == "triaged" for entry in item["status_history"])
     assert body["nextCursor"] == "cursor-123"
 
     call = calls[0]

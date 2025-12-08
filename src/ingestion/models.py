@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -22,6 +22,8 @@ class FailureCapture:
     user_hash: Optional[str] = None
     processed: bool = False
     recurrence_count: int = 1
+    status: str = "new"
+    status_history: List[Dict[str, Any]] = field(default_factory=list)
     export_status: str = "pending"
     export_destination: Optional[str] = None
     export_reference: Optional[str] = None
@@ -40,6 +42,8 @@ class FailureCapture:
             "severity": self.severity,
             "processed": self.processed,
             "recurrence_count": self.recurrence_count,
+            "status": self.status,
+            "status_history": self.status_history,
             "export_status": self.export_status,
         }
         if self.status_code is not None:

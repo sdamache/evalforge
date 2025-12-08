@@ -5,7 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from google.cloud import firestore
+try:
+    from google.cloud import firestore
+except ImportError:  # pragma: no cover - patched in tests
+    firestore = None
 
 from src.common.config import load_settings
 from src.common.logging import get_logger, log_error
@@ -34,6 +37,8 @@ def query_failure_captures(
 
     Returns (records, next_cursor) where cursor is the last fetched_at ISO string.
     """
+    if firestore is None:
+        raise ImportError("google-cloud-firestore is not installed")
     settings = load_settings()
     collection = firestore_client.collection(f"{settings.firestore.collection_prefix}raw_traces")
 
@@ -96,14 +101,20 @@ def group_failures(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "recurrence_count": 0,
                 "latest_fetched_at": rec.get("fetched_at"),
                 "trace_ids": [],
+                "status": rec.get("status", ""),
+                "status_history": [],
             },
         )
         entry["recurrence_count"] += rec.get("recurrence_count", 1)
         fetched_at = rec.get("fetched_at")
         if fetched_at and (entry["latest_fetched_at"] is None or fetched_at > entry["latest_fetched_at"]):
             entry["latest_fetched_at"] = fetched_at
+            entry["status"] = rec.get("status", entry["status"])
         trace_id = rec.get("trace_id")
         if trace_id:
             entry["trace_ids"].append(trace_id)
+        history = rec.get("status_history") or []
+        if isinstance(history, list):
+            entry["status_history"].extend(history)
 
     return list(grouped.values())
