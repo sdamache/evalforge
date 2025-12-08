@@ -114,7 +114,7 @@ description: "Task list for Automatic Capture of Datadog Failures"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T025 [P] [US3] Add integration test that exercises the export API to send a `FailureCapture` into downstream improvement queues and verifies export status updates in `tests/integration/test_export_failures_api.py`.
+ - [x] T025 [P] [US3] Add integration test that exercises the export API to send a `FailureCapture` into downstream improvement queues and verifies export status updates in `tests/integration/test_export_failures_api.py`.
 
 ### Implementation for User Story 3
 
