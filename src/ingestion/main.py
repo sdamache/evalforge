@@ -7,7 +7,10 @@ import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
-from google.cloud import firestore
+try:
+    from google.cloud import firestore
+except ImportError:  # pragma: no cover - patched in tests
+    firestore = None
 from pydantic import BaseModel, Field, PositiveInt
 
 from src.common.config import load_settings
@@ -17,9 +20,20 @@ from src.ingestion.models import FailureCapture
 
 app = FastAPI(title="Evalforge Datadog Ingestion")
 logger = get_logger(__name__)
+LAST_INGESTION_HEALTH: Dict[str, Any] = {
+    "last_sync": None,
+    "written_count": 0,
+    "backlog_size": None,
+    "last_error": None,
+    "trace_lookback_hours": None,
+    "quality_threshold": None,
+    "rate_limit": None,
+}
 
 
 def get_firestore_client():
+    if firestore is None:
+        raise ImportError("google-cloud-firestore is not installed")
     return firestore.Client()
 
 
@@ -45,7 +59,55 @@ def deduplicate_by_trace_id(traces: List[Dict[str, Any]]) -> List[Dict[str, Any]
 
 def _write_failure(firestore_client, collection_name: str, capture: FailureCapture) -> None:
     doc_ref = firestore_client.collection(collection_name).document(capture.trace_id)
+    try:
+        existing = doc_ref.get()
+        existing_data = existing.to_dict() if hasattr(existing, "to_dict") else None
+    except Exception:
+        existing_data = None
+
+    if existing_data:
+        capture.status = existing_data.get("status", capture.status)
+        capture.status_history = existing_data.get("status_history", capture.status_history)
+        capture.export_status = existing_data.get("export_status", capture.export_status)
+        capture.export_destination = existing_data.get("export_destination", capture.export_destination)
+        capture.export_reference = existing_data.get("export_reference", capture.export_reference)
+
     doc_ref.set(capture.to_dict())
+
+
+def _compute_backlog_size(fs_client, collection_name: str) -> Optional[int]:
+    collection = fs_client.collection(collection_name)
+    # Prefer stream counting for compatibility with FakeFirestore in tests.
+    try:
+        return sum(1 for _ in collection.stream())
+    except Exception:
+        pass
+    docs = getattr(collection, "docs", None)
+    if isinstance(docs, dict):
+        return len(docs)
+    return None
+
+
+def _update_health(
+    *,
+    last_sync: datetime,
+    written_count: int,
+    backlog_size: Optional[int],
+    trace_lookback_hours: int,
+    quality_threshold: float,
+    last_error: Optional[str] = None,
+) -> None:
+    LAST_INGESTION_HEALTH.update(
+        {
+            "last_sync": last_sync.isoformat(),
+            "written_count": written_count,
+            "backlog_size": backlog_size,
+            "last_error": last_error,
+            "trace_lookback_hours": trace_lookback_hours,
+            "quality_threshold": quality_threshold,
+            "rate_limit": datadog_client.get_last_rate_limit_state(),
+        }
+    )
 
 
 def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
@@ -63,6 +125,7 @@ def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
     collection_name = f"{settings.firestore.collection_prefix}raw_traces"
 
     written = 0
+    last_error: Optional[str] = None
     process_start = time.perf_counter()
     for event in events:
         trace_id = event.get("trace_id") or event.get("id")
@@ -83,14 +146,33 @@ def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
                 user_hash=user_hash if user_hash else None,
                 processed=False,
                 recurrence_count=event.get("recurrence_count", 1),
+                status_history=[
+                    {
+                        "status": "new",
+                        "actor": "ingestion",
+                        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                    }
+                ],
             )
             _write_failure(fs_client, collection_name, capture)
             log_decision(logger, trace_id=trace_id, action="ingest", outcome="written")
             written += 1
         except Exception as exc:  # capture-level errors should not halt the batch
             log_error(logger, "Failed to process trace", error=exc, trace_id=trace_id)
+            last_error = str(exc)
             continue
     process_duration = time.perf_counter() - process_start
+
+    backlog_size = _compute_backlog_size(fs_client, collection_name)
+    now = datetime.now(tz=timezone.utc)
+    _update_health(
+        last_sync=now,
+        written_count=written,
+        backlog_size=backlog_size,
+        trace_lookback_hours=trace_lookback_hours,
+        quality_threshold=quality_threshold,
+        last_error=last_error,
+    )
 
     logger.info(
         "ingestion_metrics",
@@ -100,6 +182,7 @@ def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
             "written_count": written,
             "fetch_duration_sec": round(fetch_duration, 3),
             "process_duration_sec": round(process_duration, 3),
+            "backlog_size": backlog_size,
         },
     )
     return written
@@ -119,6 +202,14 @@ def run_once(body: RunOnceRequest | None = None):
         written = run_ingestion(trace_lookback_hours=lookback_hours, quality_threshold=quality_threshold)
     except Exception as exc:
         log_error(logger, "Ingestion failed", error=exc, trace_id=None)
+        _update_health(
+            last_sync=datetime.now(tz=timezone.utc),
+            written_count=0,
+            backlog_size=None,
+            trace_lookback_hours=body.traceLookbackHours if body else load_settings().datadog.trace_lookback_hours,
+            quality_threshold=body.qualityThreshold if body and body.qualityThreshold is not None else load_settings().datadog.quality_threshold,
+            last_error=str(exc),
+        )
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {
@@ -142,4 +233,9 @@ def health():
     except Exception as exc:
         log_error(logger, "Health check failed", error=exc, trace_id=None)
         raise HTTPException(status_code=500, detail="unhealthy") from exc
-    return {"status": "ok"}
+    return {
+        "status": "ok" if LAST_INGESTION_HEALTH.get("last_error") is None else "degraded",
+        "lastIngestion": LAST_INGESTION_HEALTH,
+        "rateLimit": datadog_client.get_last_rate_limit_state(),
+        "firestoreProject": get_firestore_client().project,
+    }

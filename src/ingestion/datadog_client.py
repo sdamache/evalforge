@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import time
 from typing import Any, Dict, List, Optional
 
@@ -21,6 +22,7 @@ from src.common.config import Settings, load_settings
 from src.common.logging import get_logger, log_error
 
 logger = get_logger(__name__)
+_LAST_RATE_LIMIT_STATE: Dict[str, Any] | None = None
 
 
 def _build_query(
@@ -48,13 +50,14 @@ def _build_request(
     lookback_hours: int,
     quality_threshold: float,
     service_name: Optional[str],
+    page_cursor: Optional[str] = None,
 ) -> SpansListRequest:
     time_range = f"now-{lookback_hours}h"
     query = _build_query(service_name=service_name, quality_threshold=quality_threshold)
     attributes = SpansListRequestAttributes(
         filter=SpansQueryFilter(_from=time_range, to="now", query=query),
         options=SpansQueryOptions(timezone="UTC"),
-        page=SpansListRequestPage(limit=100),
+        page=SpansListRequestPage(limit=100, cursor=page_cursor),
         sort=SpansSort("-timestamp"),
     )
     return SpansListRequest(
@@ -71,6 +74,33 @@ def _create_api(settings: Settings) -> SpansApi:
     configuration.api_key = {"apiKeyAuth": settings.datadog.api_key, "appKeyAuth": settings.datadog.app_key}
     api_client = ApiClient(configuration)
     return SpansApi(api_client)
+
+
+def _extract_rate_limit_state(headers: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not headers:
+        return None
+    lookup = {k.lower(): v for k, v in headers.items()}
+    def _get(name: str) -> Optional[str]:
+        return lookup.get(name.lower())
+    name = _get("x-ratelimit-name")
+    limit = _get("x-ratelimit-limit")
+    remaining = _get("x-ratelimit-remaining")
+    reset = _get("x-ratelimit-reset")
+    period = _get("x-ratelimit-period")
+    if not any([name, limit, remaining, reset, period]):
+        return None
+    return {
+        "name": name,
+        "limit": int(limit) if limit is not None else None,
+        "remaining": int(remaining) if remaining is not None else None,
+        "reset": int(reset) if reset is not None else None,
+        "period": int(period) if period is not None else None,
+        "observed_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
+
+
+def get_last_rate_limit_state() -> Dict[str, Any]:
+    return _LAST_RATE_LIMIT_STATE or {"name": None, "limit": None, "remaining": None, "reset": None, "period": None, "observed_at": None}
 
 
 @retry(
@@ -94,15 +124,10 @@ def fetch_recent_failures(
     lookback = trace_lookback_hours or settings.datadog.trace_lookback_hours
     quality = quality_threshold if quality_threshold is not None else settings.datadog.quality_threshold
 
-    request = _build_request(
-        lookback_hours=lookback,
-        quality_threshold=quality,
-        service_name=service_name,
-    )
-
     api = _create_api(settings)
 
     events: List[Dict[str, Any]] = []
+    cursor: Optional[str] = None
     try:
         start = time.perf_counter()
         logger.info(
@@ -112,10 +137,27 @@ def fetch_recent_failures(
                 "lookback_hours": lookback,
                 "quality_threshold": quality,
                 "service_name": service_name,
+                "page_cursor": cursor,
             },
         )
-        for span in api.list_spans_with_pagination(body=request):
-            events.append(span.to_dict() if hasattr(span, "to_dict") else dict(span))
+        while True:
+            request = _build_request(
+                lookback_hours=lookback,
+                quality_threshold=quality,
+                service_name=service_name,
+                page_cursor=cursor,
+            )
+            response, _, headers = api.list_spans_with_http_info(body=request, _return_http_data_only=False)
+            spans = getattr(response, "data", []) or []
+            for span in spans:
+                events.append(span.to_dict() if hasattr(span, "to_dict") else dict(span))
+            rate_limit_state = _extract_rate_limit_state(headers)
+            if rate_limit_state:
+                global _LAST_RATE_LIMIT_STATE
+                _LAST_RATE_LIMIT_STATE = rate_limit_state
+            cursor = getattr(getattr(getattr(response, "meta", None), "page", None), "after", None)
+            if not cursor:
+                break
         duration = time.perf_counter() - start
         logger.info(
             "datadog_query_success",

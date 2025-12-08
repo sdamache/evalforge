@@ -11,24 +11,29 @@ def test_run_once_writes_sanitized_failure(monkeypatch):
     captured = []
 
     class FakeDoc:
-        def __init__(self, doc_id: str):
+        def __init__(self, doc_id: str, parent):
             self.doc_id = doc_id
+            self.parent = parent
 
         def set(self, data):
             captured.append({"doc_id": self.doc_id, "data": data})
+            self.parent.docs[self.doc_id] = data
 
     class FakeCollection:
         def __init__(self):
-            self.docs = {}
+            self.docs: dict[str, dict] = {}
 
         def document(self, doc_id: str):
-            doc = FakeDoc(doc_id)
-            self.docs[doc_id] = doc
-            return doc
+            return FakeDoc(doc_id, self)
+
+        def stream(self):
+            for doc_id, data in self.docs.items():
+                yield {"id": doc_id, **data}
 
     class FakeFirestore:
         def __init__(self):
             self.collections = {}
+            self.project = "test-project"
 
         def collection(self, name: str):
             if name not in self.collections:
@@ -66,7 +71,17 @@ def test_run_once_writes_sanitized_failure(monkeypatch):
     def fake_fetch_recent_failures(*_, **__):
         return [raw_trace]
 
+    sample_rate_limit = {
+        "name": "core",
+        "limit": 300,
+        "remaining": 250,
+        "reset": 60,
+        "period": 60,
+        "observed_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
+
     monkeypatch.setattr(ingestion_main.datadog_client, "fetch_recent_failures", fake_fetch_recent_failures)
+    monkeypatch.setattr(ingestion_main.datadog_client, "get_last_rate_limit_state", lambda: sample_rate_limit)
 
     def fake_sanitize_trace(payload):
         assert "user" in payload.get("trace_payload", {})  # ensure sanitizer sees raw PII
@@ -94,6 +109,17 @@ def test_run_once_writes_sanitized_failure(monkeypatch):
     assert saved["trace_payload"]["output"] == "[redacted]"
     assert saved["user_hash"] == "hashed-user-123"
     assert "user" not in saved["trace_payload"]  # no raw PII fields
+    assert saved["status"] == "new"
+    assert saved["status_history"]
 
     # Date-time should be ISO formatted to match contract (parseable).
     datetime.fromisoformat(saved["fetched_at"])
+
+    health_resp = client.get("/health")
+    assert health_resp.status_code == 200
+    health = health_resp.json()
+    assert health["status"] == "ok"
+    assert health["lastIngestion"]["written_count"] == 1
+    assert health["lastIngestion"]["backlog_size"] == 1
+    assert health["lastIngestion"]["last_error"] is None
+    assert health["rateLimit"]["name"] == "core"

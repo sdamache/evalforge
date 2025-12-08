@@ -30,6 +30,7 @@ MANIFEST
 # =============================================================================
 venv/
 .venv/
+evalforge_venv/
 ENV/
 env/
 .env
@@ -124,3 +125,4 @@ firestore-debug-*.log
 
 # Coding Agents
 **/.codex/**
+**/.claude/**

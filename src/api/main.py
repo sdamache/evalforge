@@ -6,7 +6,10 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
-from google.cloud import firestore
+try:
+    from google.cloud import firestore
+except ImportError:  # pragma: no cover - patched in tests
+    firestore = None
 from pydantic import BaseModel, Field, constr
 
 from src.api import capture_queue
@@ -20,7 +23,37 @@ logger = get_logger(__name__)
 
 
 def get_firestore_client():
+    if firestore is None:
+        raise ImportError("google-cloud-firestore is not installed")
     return firestore.Client()
+
+
+def _compute_backlog_size(collection) -> int | None:
+    try:
+        return sum(1 for _ in collection.stream())
+    except Exception:
+        pass
+    docs = getattr(collection, "docs", None)
+    if isinstance(docs, dict):
+        return len(docs)
+    return None
+
+
+def _latest_fetched_at(collection) -> str | None:
+    try:
+        snapshots = list(
+            collection.order_by("fetched_at", direction=firestore.Query.DESCENDING).limit(1).stream()  # type: ignore[arg-type]
+        )
+        if snapshots:
+            snap = snapshots[0]
+            if hasattr(snap, "to_dict"):
+                data = snap.to_dict() or {}
+                return data.get("fetched_at")
+            if isinstance(snap, dict):
+                return snap.get("fetched_at")
+    except Exception:
+        pass
+    return None
 
 
 def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -86,6 +119,7 @@ def create_export(req: ExportRequest):
                 failure_id=req.failureId,
                 destination=req.destination,
                 status="succeeded",
+                actor="api",
             )
         except TypeError:
             result = exports.create_export(
@@ -105,3 +139,23 @@ def create_export(req: ExportRequest):
         raise HTTPException(status_code=500, detail="Failed to create export") from exc
 
     return result
+
+
+@app.get("/health")
+def health():
+    try:
+        settings = load_settings()
+        fs_client = get_firestore_client()
+        collection = fs_client.collection(f"{settings.firestore.collection_prefix}raw_traces")
+        backlog_size = _compute_backlog_size(collection)
+        last_sync = _latest_fetched_at(collection)
+    except Exception as exc:
+        log_error(logger, "Health check failed", error=exc, trace_id=None)
+        raise HTTPException(status_code=500, detail="unhealthy") from exc
+
+    return {
+        "status": "ok",
+        "firestoreProject": fs_client.project,
+        "backlogSize": backlog_size,
+        "lastSync": last_sync,
+    }
