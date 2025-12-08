@@ -31,14 +31,38 @@ FIRESTORE_COLLECTION_PREFIX=evalforge_
 
 ## Local Development Flow
 
-1. Install dependencies and set up your virtualenv as described in the repository README.
-2. Run the ingestion service locally (for example):
+1. Create/activate the shared venv and install deps:
 
 ```bash
-python -m src.ingestion.main
+python -m venv evalforge_venv
+source evalforge_venv/bin/activate
+pip install -e ".[dev]"
+```
+
+2. Run the ingestion service API locally (FastAPI):
+
+```bash
+evalforge_venv/bin/uvicorn src.ingestion.main:app --reload --port 8000
 ```
 
 3. Trigger a one-off ingestion run using the configured scheduler or a manual HTTP call to the `/ingestion/run-once` endpoint.
+
+```bash
+curl -X POST "http://localhost:8000/ingestion/run-once" \
+  -H "Content-Type: application/json" \
+  -d '{"traceLookbackHours":12,"qualityThreshold":0.4}'
+```
+
+4. Run the capture queue + export API locally:
+
+```bash
+evalforge_venv/bin/uvicorn src.api.main:app --reload --port 8001
+```
+
+Example calls:
+
+- Queue: `curl "http://localhost:8001/capture-queue?severity=high&agent=llm-agent&pageSize=25"`
+- Export: `curl -X POST "http://localhost:8001/exports" -H "Content-Type: application/json" -d '{"failureId":"trace-123","destination":"eval_backlog"}'`
 
 ## Deployment Outline
 
