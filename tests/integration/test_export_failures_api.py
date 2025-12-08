@@ -1,10 +1,8 @@
 from datetime import datetime, timezone
 
-import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.mark.xfail(reason="export API not implemented yet")
 def test_export_failure(monkeypatch):
     from src.api import main as api_main
 

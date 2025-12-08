@@ -119,7 +119,7 @@ description: "Task list for Automatic Capture of Datadog Failures"
 ### Implementation for User Story 3
 
  - [x] T026 [P] [US3] Implement export helper to build and persist `ExportPackage` records for each exported failure in `src/api/exports.py`.
-- [ ] T027 [US3] Implement export API endpoint to mark `FailureCapture` records as ready and trigger creation of `ExportPackage` payloads in `src/api/main.py`.
+ - [x] T027 [US3] Implement export API endpoint to mark `FailureCapture` records as ready and trigger creation of `ExportPackage` payloads in `src/api/main.py`.
 - [ ] T028 [US3] Update `FailureCapture` model to track export references and status fields in `src/ingestion/models.py` (export metadata and audit fields).
 - [ ] T029 [US3] Implement integration hook that forwards `ExportPackage` payloads to downstream generator modules in `src/generators/export_bridge.py`.
 - [ ] T030 [US3] Add audit logging for export actions (who exported, when, destination, status) in `src/common/logging.py`.

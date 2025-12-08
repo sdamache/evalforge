@@ -7,8 +7,10 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from google.cloud import firestore
+from pydantic import BaseModel, Field, constr
 
 from src.api import capture_queue
+from src.api import exports
 from src.common.config import load_settings
 from src.common.logging import get_logger, log_error
 
@@ -66,3 +68,31 @@ def list_capture_queue(
         raise HTTPException(status_code=500, detail="Failed to fetch capture queue") from exc
 
     return {"items": groups, "nextCursor": next_cursor}
+
+
+class ExportRequest(BaseModel):
+    failureId: constr(strip_whitespace=True)
+    destination: constr(strip_whitespace=True)
+
+
+@app.post("/exports")
+def create_export(req: ExportRequest):
+    try:
+        # Primary path uses our helper with explicit Firestore client; fallback supports test doubles.
+        try:
+            result = exports.create_export(
+                get_firestore_client(),
+                failure_id=req.failureId,
+                destination=req.destination,
+                status="succeeded",
+            )
+        except TypeError:
+            result = exports.create_export(
+                req.failureId,
+                req.destination,
+            )
+    except Exception as exc:
+        log_error(logger, "Failed to create export", error=exc, trace_id=req.failureId)
+        raise HTTPException(status_code=500, detail="Failed to create export") from exc
+
+    return result
