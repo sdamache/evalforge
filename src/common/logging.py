@@ -115,3 +115,26 @@ def log_error(
         extra={"trace_id": trace_id, **context},
         exc_info=error if error else None,
     )
+
+
+def log_audit(
+    logger: logging.Logger,
+    *,
+    actor: Optional[str],
+    action: str,
+    target: Optional[str] = None,
+    status: str = "succeeded",
+    **context: Any,
+) -> None:
+    """Emit an audit log for export actions."""
+    logger.info(
+        "audit",
+        extra={
+            "event": "audit",
+            "actor": actor,
+            "action": action,
+            "target": target,
+            "status": status,
+            **context,
+        },
+    )

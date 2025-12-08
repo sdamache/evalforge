@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, constr
 
 from src.api import capture_queue
 from src.api import exports
+from src.common.logging import log_audit
 from src.common.config import load_settings
 from src.common.logging import get_logger, log_error
 
@@ -91,6 +92,14 @@ def create_export(req: ExportRequest):
                 req.failureId,
                 req.destination,
             )
+        log_audit(
+            logger,
+            actor="api",
+            action="export_failure",
+            target=req.failureId,
+            status=result.get("status", "unknown"),
+            destination=req.destination,
+        )
     except Exception as exc:
         log_error(logger, "Failed to create export", error=exc, trace_id=req.failureId)
         raise HTTPException(status_code=500, detail="Failed to create export") from exc
