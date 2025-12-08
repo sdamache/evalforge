@@ -55,7 +55,14 @@ def list_capture_queue(
     except HTTPException:
         raise
     except Exception as exc:
-        log_error(logger, "Failed to list capture queue", error=exc, trace_id=None)
+        log_error(
+            logger,
+            "Failed to list capture queue",
+            error=exc,
+            trace_id=None,
+            severity=severity,
+            agent=agent,
+        )
         raise HTTPException(status_code=500, detail="Failed to fetch capture queue") from exc
 
     return {"items": groups, "nextCursor": next_cursor}

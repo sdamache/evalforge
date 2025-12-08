@@ -48,14 +48,19 @@ def query_failure_captures(
     if agent:
         query = query.where("service_name", "==", agent)
     if page_cursor:
-        query = query.start_after({"fetched_at": page_cursor})
+        query = query.start_after(page_cursor)
 
     query = query.limit(page_size)
 
     try:
         docs = list(query.stream())
     except Exception as exc:
-        log_error(logger, "Failed to query capture queue", error=exc, trace_id=None)
+        log_error(
+            logger,
+            "Failed to query capture queue",
+            error=exc,
+            trace_id=None,
+        )
         raise
 
     records = []
