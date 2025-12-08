@@ -93,7 +93,7 @@ description: "Task list for Automatic Capture of Datadog Failures"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T020 [P] [US2] Add integration test that exercises the capture queue listing API with filters (time range, severity, agent) in `tests/integration/test_failure_queue_api.py`.
+ - [x] T020 [P] [US2] Add integration test that exercises the capture queue listing API with filters (time range, severity, agent) in `tests/integration/test_failure_queue_api.py`.
 
 ### Implementation for User Story 2
 
