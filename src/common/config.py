@@ -49,6 +49,7 @@ class DatadogConfig:
     site: str
     trace_lookback_hours: int
     quality_threshold: float
+    rate_limit_max_sleep: int
 
 
 @dataclass
@@ -70,6 +71,7 @@ def load_settings() -> Settings:
         site=_get_env("DATADOG_SITE", default="datadoghq.com"),
         trace_lookback_hours=_int_env("TRACE_LOOKBACK_HOURS", default=24),
         quality_threshold=_float_env("QUALITY_THRESHOLD", default=0.5),
+        rate_limit_max_sleep=_int_env("DATADOG_RATE_LIMIT_MAX_SLEEP", default=10),
     )
 
     firestore = FirestoreConfig(

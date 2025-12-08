@@ -113,11 +113,23 @@ def _update_health(
 def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
     settings = load_settings()
     fetch_start = time.perf_counter()
-    events = datadog_client.fetch_recent_failures(
-        trace_lookback_hours=trace_lookback_hours,
-        quality_threshold=quality_threshold,
-        service_name=None,
-    )
+    try:
+        events = datadog_client.fetch_recent_failures(
+            trace_lookback_hours=trace_lookback_hours,
+            quality_threshold=quality_threshold,
+            service_name=None,
+        )
+    except (datadog_client.RateLimitError, datadog_client.CredentialError) as exc:
+        now = datetime.now(tz=timezone.utc)
+        _update_health(
+            last_sync=now,
+            written_count=0,
+            backlog_size=None,
+            trace_lookback_hours=trace_lookback_hours,
+            quality_threshold=quality_threshold,
+            last_error=str(exc),
+        )
+        raise
     fetch_duration = time.perf_counter() - fetch_start
 
     events = deduplicate_by_trace_id(events)
@@ -200,6 +212,10 @@ def run_once(body: RunOnceRequest | None = None):
     try:
         lookback_hours, quality_threshold = _resolve_ingestion_params(body)
         written = run_ingestion(trace_lookback_hours=lookback_hours, quality_threshold=quality_threshold)
+    except datadog_client.RateLimitError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except datadog_client.CredentialError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
     except Exception as exc:
         log_error(logger, "Ingestion failed", error=exc, trace_id=None)
         _update_health(
@@ -224,12 +240,13 @@ def run_once(body: RunOnceRequest | None = None):
 def health():
     try:
         settings = load_settings()
-
-        # Firestore client instantiation (no remote call).
-        get_firestore_client().project
-
-        # Datadog client instantiation (no remote call to avoid network dependency in health).
-        datadog_client._create_api(settings)  # noqa: SLF001
+        fs_client = get_firestore_client()
+        backlog_size = _compute_backlog_size(fs_client, f"{settings.firestore.collection_prefix}raw_traces")
+        coverage_message = (
+            "No incidents ingested yet (empty state). Backfill may still be running."
+            if backlog_size in (0, None)
+            else "Backfill complete for current window."
+        )
     except Exception as exc:
         log_error(logger, "Health check failed", error=exc, trace_id=None)
         raise HTTPException(status_code=500, detail="unhealthy") from exc
@@ -238,4 +255,8 @@ def health():
         "lastIngestion": LAST_INGESTION_HEALTH,
         "rateLimit": datadog_client.get_last_rate_limit_state(),
         "firestoreProject": get_firestore_client().project,
+        "coverage": {
+            "backfillStatus": "unknown" if backlog_size is None else ("empty" if backlog_size == 0 else "complete"),
+            "message": coverage_message,
+        },
     }

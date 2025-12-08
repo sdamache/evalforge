@@ -101,7 +101,20 @@ def list_capture_queue(
         )
         raise HTTPException(status_code=500, detail="Failed to fetch capture queue") from exc
 
-    return {"items": groups, "nextCursor": next_cursor}
+    coverage_message = (
+        "No incidents found; ingestion may still be backfilling or filters are too narrow."
+        if not groups
+        else ("Additional pages available; continue with nextCursor." if next_cursor else "Backfill complete for filters.")
+    )
+    return {
+        "items": groups,
+        "nextCursor": next_cursor,
+        "coverage": {
+            "empty": len(groups) == 0,
+            "backfillStatus": "partial" if next_cursor else ("empty" if not groups else "complete"),
+            "message": coverage_message,
+        },
+    }
 
 
 class ExportRequest(BaseModel):
@@ -138,6 +151,11 @@ def create_export(req: ExportRequest):
         log_error(logger, "Failed to create export", error=exc, trace_id=req.failureId)
         raise HTTPException(status_code=500, detail="Failed to create export") from exc
 
+    result = dict(result)
+    result["coverage"] = {
+        "backfillStatus": "unknown",
+        "message": "Export enqueued. If the queue was empty or backfill is partial, retry after ingestion completes.",
+    }
     return result
 
 

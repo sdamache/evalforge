@@ -90,6 +90,8 @@ def test_capture_queue_filters(monkeypatch):
     assert item["status"] == "triaged"
     assert any(entry.get("status") == "triaged" for entry in item["status_history"])
     assert body["nextCursor"] == "cursor-123"
+    assert body["coverage"]["backfillStatus"] == "partial"
+    assert "Additional pages" in body["coverage"]["message"]
 
     call = calls[0]
     assert call["severity"] == "high"
@@ -98,3 +100,38 @@ def test_capture_queue_filters(monkeypatch):
     assert call["page_cursor"] == "prev-cursor"
     assert call["start_time"] == start
     assert call["end_time"] == end
+
+
+def test_capture_queue_empty_state(monkeypatch):
+    from src.api import main as api_main
+
+    monkeypatch.setattr(api_main, "get_firestore_client", lambda: "fake-client")
+    monkeypatch.setattr(api_main.capture_queue, "query_failure_captures", lambda *args, **kwargs: ([], None))
+
+    client = TestClient(api_main.app)
+    resp = client.get("/capture-queue")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["items"] == []
+    assert body["coverage"]["empty"] is True
+    assert "No incidents" in body["coverage"]["message"]
+
+
+def test_exports_includes_backfill_message(monkeypatch):
+    from src.api import main as api_main
+
+    fake_export = {
+        "id": "exp-1",
+        "status": "succeeded",
+        "destination": "dest",
+        "failureId": "trace-123",
+    }
+    monkeypatch.setattr(api_main, "get_firestore_client", lambda: "fake-client")
+    monkeypatch.setattr(api_main.exports, "create_export", lambda *args, **kwargs: fake_export)
+
+    client = TestClient(api_main.app)
+    resp = client.post("/exports", json={"failureId": "trace-123", "destination": "dest"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["coverage"]["backfillStatus"] == "unknown"
+    assert "backfill" in body["coverage"]["message"]

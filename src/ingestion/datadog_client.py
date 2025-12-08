@@ -7,6 +7,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from datadog_api_client import ApiClient, Configuration
+from datadog_api_client.exceptions import ApiException
 from datadog_api_client.v2.api.spans_api import SpansApi
 from datadog_api_client.v2.model.spans_list_request import SpansListRequest
 from datadog_api_client.v2.model.spans_list_request_attributes import SpansListRequestAttributes
@@ -16,13 +17,29 @@ from datadog_api_client.v2.model.spans_list_request_type import SpansListRequest
 from datadog_api_client.v2.model.spans_query_filter import SpansQueryFilter
 from datadog_api_client.v2.model.spans_query_options import SpansQueryOptions
 from datadog_api_client.v2.model.spans_sort import SpansSort
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from src.common.config import Settings, load_settings
 from src.common.logging import get_logger, log_error
 
 logger = get_logger(__name__)
 _LAST_RATE_LIMIT_STATE: Dict[str, Any] | None = None
+
+
+class RateLimitError(Exception):
+    """Raised when Datadog rate limits are exceeded after retries."""
+
+    def __init__(self, retry_after: Optional[int], rate_limit_state: Optional[Dict[str, Any]] = None):
+        self.retry_after = retry_after
+        self.rate_limit_state = rate_limit_state or {}
+        super().__init__(
+            f"Datadog rate limit exceeded; retry after {retry_after if retry_after is not None else 'backoff'} seconds"
+        )
+
+
+class CredentialError(Exception):
+    """Raised when Datadog credentials are missing or invalid."""
+
 
 
 def _build_query(
@@ -103,10 +120,11 @@ def get_last_rate_limit_state() -> Dict[str, Any]:
     return _LAST_RATE_LIMIT_STATE or {"name": None, "limit": None, "remaining": None, "reset": None, "period": None, "observed_at": None}
 
 
+# Do not retry when credentials are invalid; allow rate-limit errors to surface after bounded retries.
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(min=1, max=8),
-    retry=retry_if_exception_type(Exception),
+    retry=retry_if_exception(lambda exc: not isinstance(exc, CredentialError) and not isinstance(exc, RateLimitError)),
     reraise=True,
 )
 def fetch_recent_failures(
@@ -128,6 +146,7 @@ def fetch_recent_failures(
 
     events: List[Dict[str, Any]] = []
     cursor: Optional[str] = None
+    attempts = 0
     try:
         start = time.perf_counter()
         logger.info(
@@ -147,15 +166,46 @@ def fetch_recent_failures(
                 service_name=service_name,
                 page_cursor=cursor,
             )
-            response, _, headers = api.list_spans_with_http_info(body=request, _return_http_data_only=False)
+            try:
+                response, _, headers = api.list_spans_with_http_info(body=request, _return_http_data_only=False)
+            except ApiException as exc:
+                headers = getattr(exc, "headers", {}) or {}
+                if exc.status == 429:
+                    rate_limit_state = _extract_rate_limit_state(headers) or get_last_rate_limit_state()
+                    if rate_limit_state:
+                        global _LAST_RATE_LIMIT_STATE
+                        _LAST_RATE_LIMIT_STATE = rate_limit_state
+                    retry_after_raw = headers.get("Retry-After") or headers.get("retry-after")
+                    retry_after = int(retry_after_raw) if retry_after_raw is not None else None
+                    attempts += 1
+                    backoff_seconds = min(max(retry_after or attempts, 1), settings.datadog.rate_limit_max_sleep)
+                    logger.warning(
+                        "datadog_rate_limited",
+                        extra={
+                            "event": "datadog_rate_limited",
+                            "retry_after": retry_after,
+                            "attempt": attempts,
+                            "backoff_seconds": backoff_seconds,
+                        },
+                    )
+                    if attempts >= 3:
+                        raise RateLimitError(retry_after, rate_limit_state) from exc
+                    time.sleep(backoff_seconds)
+                    continue
+                if exc.status in (401, 403):
+                    raise CredentialError("Datadog credentials are missing or invalid") from exc
+                raise
+            except Exception:
+                raise
+
             spans = getattr(response, "data", []) or []
             for span in spans:
                 events.append(span.to_dict() if hasattr(span, "to_dict") else dict(span))
             rate_limit_state = _extract_rate_limit_state(headers)
             if rate_limit_state:
-                global _LAST_RATE_LIMIT_STATE
                 _LAST_RATE_LIMIT_STATE = rate_limit_state
             cursor = getattr(getattr(getattr(response, "meta", None), "page", None), "after", None)
+            attempts = 0
             if not cursor:
                 break
         duration = time.perf_counter() - start
