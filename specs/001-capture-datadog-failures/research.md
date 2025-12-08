@@ -45,3 +45,11 @@ This research spike validates how to ingest LLM failure traces from Datadog LLM 
 
 - [RESOLVED]: Validate the exact JSON shape of Datadog LLM Observability traces in our account and adjust field paths accordingly (via docs, UI, or API responses). → Field paths confirmed via docs: `http.status_code`, `llm_obs.quality_score`, `llm_obs.evaluations.hallucination`, `llm_obs.evaluations.prompt_injection`, `llm_obs.evaluations.toxicity_score`, and `llm_obs.guardrails.failed`.
 - [RESOLVED]: Confirm whether additional PII-like fields (including custom tags) need stripping or hashing before storage. → Strip `user.email`, `user.name`, `user.phone`, `user.address`, `user.ip`, `client.ip`, `session_id`, `request.headers.authorization`, `request.headers.cookie`, and tags prefixed `pii:` or `user.` (except `user.id`); hash `user.id` to `user_hash`.
+- [DEFERRED]: 90-day audit log retention is out of scope for the hackathon; keep lifecycle logs structured (ingestion and API emit `event`-keyed logs) and revisit long-term retention later.
+
+## NFRs and guardrails (constitution-aligned)
+
+- **Latency**: end-to-end ingestion run completes within `INGESTION_LATENCY_MINUTES` (default 5); retry on 429 with bounded jittered backoff (1–10s) and surface rate-limit headers in health.
+- **Observability**: `/health` returns last sync, backlog size, rate-limit state, and coverage hints (empty/backfill); logs include `datadog_query*`, `ingestion_metrics`, and error contexts.
+- **Cost**: keep Datadog page size at 100 and limit retries to 3; document the backoff cap via `DATADOG_RATE_LIMIT_MAX_SLEEP`.
+- **PII**: strip identifiers and hash `user.id` to `user_hash`; never store secrets; use Secret Manager for API keys.

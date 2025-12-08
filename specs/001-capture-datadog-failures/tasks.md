@@ -142,9 +142,9 @@ description: "Task list for Automatic Capture of Datadog Failures"
 
  - [x] T036 [P] Surface ingestion health signals (last sync, backlog size, error reasons, rate-limit state) via `/health` and metrics in `src/ingestion/main.py` and `src/api/main.py`, with coverage in `tests/integration/test_ingestion_datadog_firehose.py`.
  - [x] T037 [P] Persist and expose capture status history (timestamps + actor) in `src/ingestion/models.py` and queue/export APIs in `src/api/main.py`, with assertions in `tests/integration/test_failure_queue_api.py`.
- - [ ] T038 [P] Handle rate-limit (429) and credential-loss failures gracefully with backoff, plus explicit empty-state and backfill coverage messages in queue/export responses in `src/ingestion/main.py` and `src/api/main.py`, validated in integration tests.
- - [ ] T039 [P] Document new NFRs (latency SLO, observability, cost, PII handling) and configurables (`INGESTION_LATENCY_MINUTES`, rate-limit/backoff settings) in `specs/001-capture-datadog-failures/quickstart.md` and `specs/001-capture-datadog-failures/research.md`.
- - [ ] T040 [P] Document deferred 90-day audit retention and confirm structured lifecycle logs exist now (no code change if already present).
+- [x] T038 [P] Handle rate-limit (429) and credential-loss failures gracefully with backoff, plus explicit empty-state and backfill coverage messages in queue/export responses in `src/ingestion/main.py` and `src/api/main.py`, validated in integration tests.
+- [x] T039 [P] Document new NFRs (latency SLO, observability, cost, PII handling) and configurables (`INGESTION_LATENCY_MINUTES`, rate-limit/backoff settings) in `specs/001-capture-datadog-failures/quickstart.md` and `specs/001-capture-datadog-failures/research.md`.
+- [x] T040 [P] Document deferred 90-day audit retention and confirm structured lifecycle logs exist now (no code change if already present).
 
 ---
 
