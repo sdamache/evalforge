@@ -68,16 +68,16 @@ description: "Task list for Automatic Capture of Datadog Failures"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T011 [P] [US1] Add contract test ensuring `FailureCapture` documents written to Firestore match the schema in `specs/001-capture-datadog-failures/contracts/ingestion-openapi.yaml` in `tests/contract/test_ingestion_payload_shape.py`.
-- [ ] T012 [P] [US1] Add integration test that calls `/ingestion/run-once` and asserts new `FailureCapture` documents are created in Firestore with PII stripped in `tests/integration/test_ingestion_datadog_firehose.py`.
+ - [x] T011 [P] [US1] Add contract test ensuring `FailureCapture` documents written to Firestore match the schema in `specs/001-capture-datadog-failures/contracts/ingestion-openapi.yaml` in `tests/contract/test_ingestion_payload_shape.py`.
+ - [x] T012 [P] [US1] Add integration test that calls `/ingestion/run-once` and asserts new `FailureCapture` documents are created in Firestore with PII stripped in `tests/integration/test_ingestion_datadog_firehose.py`.
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Implement Datadog client helper to query recent LLM traces with filters and cursor-based pagination in `src/ingestion/datadog_client.py` using configuration from `src/common/config.py`.
-- [ ] T014 [P] [US1] Implement PII stripping helper to remove configured PII fields and compute `user_hash` in `src/ingestion/pii_sanitizer.py` based on `specs/001-capture-datadog-failures/research.md`.
-- [ ] T015 [US1] Implement ingestion orchestration to pull failures from Datadog, deduplicate by `trace_id`, and write `FailureCapture` docs to Firestore in `src/ingestion/main.py`.
-- [ ] T016 [US1] Implement `/ingestion/run-once` HTTP handler matching `specs/001-capture-datadog-failures/contracts/ingestion-openapi.yaml` in `src/ingestion/main.py`.
-- [ ] T017 [US1] Implement `/health` endpoint that reports connectivity to Datadog and Firestore and basic service status in `src/ingestion/main.py`.
+ - [x] T013 [P] [US1] Implement Datadog client helper to query recent LLM traces with filters and cursor-based pagination in `src/ingestion/datadog_client.py` using configuration from `src/common/config.py`.
+ - [x] T014 [P] [US1] Implement PII stripping helper to remove configured PII fields and compute `user_hash` in `src/ingestion/pii_sanitizer.py` based on `specs/001-capture-datadog-failures/research.md`.
+ - [x] T015 [US1] Implement ingestion orchestration to pull failures from Datadog, deduplicate by `trace_id`, and write `FailureCapture` docs to Firestore in `src/ingestion/main.py`.
+ - [x] T016 [US1] Implement `/ingestion/run-once` HTTP handler matching `specs/001-capture-datadog-failures/contracts/ingestion-openapi.yaml` in `src/ingestion/main.py`.
+ - [x] T017 [US1] Implement `/health` endpoint that reports connectivity to Datadog and Firestore and basic service status in `src/ingestion/main.py`.
 - [ ] T018 [US1] Add structured logging and error handling (including retry/backoff outcomes) for each ingestion decision in `src/ingestion/main.py` and `src/ingestion/datadog_client.py`.
 - [ ] T019 [US1] Ensure ingestion respects `TRACE_LOOKBACK_HOURS` and `QUALITY_THRESHOLD` configuration values via `src/common/config.py` and is wired into the Cloud Scheduler trigger path.
 
