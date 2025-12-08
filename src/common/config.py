@@ -17,6 +17,8 @@ def _get_env(key: str, default: Optional[str] = None, required: bool = False) ->
         raise ConfigError(f"Missing required environment variable: {key}")
     if value is None:
         raise ConfigError(f"Environment variable {key} is not set and no default provided")
+    if value == "" and default is None:
+        raise ConfigError(f"Environment variable {key} is empty and no default provided")
     return value
 
 
