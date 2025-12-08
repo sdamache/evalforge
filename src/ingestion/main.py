@@ -86,18 +86,28 @@ def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
     return written
 
 
+def _resolve_ingestion_params(body: RunOnceRequest | None) -> tuple[int, float]:
+    settings = load_settings()
+    lookback = body.traceLookbackHours if body and body.traceLookbackHours else settings.datadog.trace_lookback_hours
+    quality = body.qualityThreshold if body and body.qualityThreshold is not None else settings.datadog.quality_threshold
+    return lookback, quality
+
+
 @app.post("/ingestion/run-once", status_code=202)
 def run_once(body: RunOnceRequest | None = None):
     try:
-        written = run_ingestion(
-            trace_lookback_hours=body.traceLookbackHours if body and body.traceLookbackHours else load_settings().datadog.trace_lookback_hours,
-            quality_threshold=body.qualityThreshold if body and body.qualityThreshold is not None else load_settings().datadog.quality_threshold,
-        )
+        lookback_hours, quality_threshold = _resolve_ingestion_params(body)
+        written = run_ingestion(trace_lookback_hours=lookback_hours, quality_threshold=quality_threshold)
     except Exception as exc:
         log_error(logger, "Ingestion failed", error=exc, trace_id=None)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    return {"startedAt": datetime.now(tz=timezone.utc).isoformat(), "estimatedTraceCount": written}
+    return {
+        "startedAt": datetime.now(tz=timezone.utc).isoformat(),
+        "estimatedTraceCount": written,
+        "traceLookbackHours": lookback_hours,
+        "qualityThreshold": quality_threshold,
+    }
 
 
 @app.get("/health")
