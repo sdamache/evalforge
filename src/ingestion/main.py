@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -49,16 +50,20 @@ def _write_failure(firestore_client, collection_name: str, capture: FailureCaptu
 
 def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
     settings = load_settings()
+    fetch_start = time.perf_counter()
     events = datadog_client.fetch_recent_failures(
         trace_lookback_hours=trace_lookback_hours,
         quality_threshold=quality_threshold,
         service_name=None,
     )
+    fetch_duration = time.perf_counter() - fetch_start
+
     events = deduplicate_by_trace_id(events)
     fs_client = get_firestore_client()
     collection_name = f"{settings.firestore.collection_prefix}raw_traces"
 
     written = 0
+    process_start = time.perf_counter()
     for event in events:
         trace_id = event.get("trace_id") or event.get("id")
         if not trace_id:
@@ -85,6 +90,18 @@ def run_ingestion(trace_lookback_hours: int, quality_threshold: float) -> int:
         except Exception as exc:  # capture-level errors should not halt the batch
             log_error(logger, "Failed to process trace", error=exc, trace_id=trace_id)
             continue
+    process_duration = time.perf_counter() - process_start
+
+    logger.info(
+        "ingestion_metrics",
+        extra={
+            "event": "ingestion_metrics",
+            "fetched_count": len(events),
+            "written_count": written,
+            "fetch_duration_sec": round(fetch_duration, 3),
+            "process_duration_sec": round(process_duration, 3),
+        },
+    )
     return written
 
 

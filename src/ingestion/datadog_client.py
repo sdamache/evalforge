@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Dict, List, Optional
 
 from datadog_api_client import ApiClient, Configuration
@@ -103,6 +104,7 @@ def fetch_recent_failures(
 
     events: List[Dict[str, Any]] = []
     try:
+        start = time.perf_counter()
         logger.info(
             "query_datadog",
             extra={
@@ -114,7 +116,11 @@ def fetch_recent_failures(
         )
         for span in api.list_spans_with_pagination(body=request):
             events.append(span.to_dict() if hasattr(span, "to_dict") else dict(span))
-        logger.info("datadog_query_success", extra={"event": "datadog_query_success", "count": len(events)})
+        duration = time.perf_counter() - start
+        logger.info(
+            "datadog_query_success",
+            extra={"event": "datadog_query_success", "count": len(events), "duration_sec": round(duration, 3)},
+        )
     except Exception as exc:  # broad catch to surface in structured logs
         log_error(logger, "Failed to fetch Datadog failures", error=exc)
         raise
