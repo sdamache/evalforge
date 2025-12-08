@@ -22,6 +22,9 @@ class FailureCapture:
     user_hash: Optional[str] = None
     processed: bool = False
     recurrence_count: int = 1
+    export_status: str = "pending"
+    export_destination: Optional[str] = None
+    export_reference: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to Firestore-friendly dict aligned with the contract."""
@@ -37,6 +40,7 @@ class FailureCapture:
             "severity": self.severity,
             "processed": self.processed,
             "recurrence_count": self.recurrence_count,
+            "export_status": self.export_status,
         }
         if self.status_code is not None:
             payload["status_code"] = self.status_code
@@ -44,6 +48,10 @@ class FailureCapture:
             payload["quality_score"] = self.quality_score
         if self.user_hash is not None:
             payload["user_hash"] = self.user_hash
+        if self.export_destination is not None:
+            payload["export_destination"] = self.export_destination
+        if self.export_reference is not None:
+            payload["export_reference"] = self.export_reference
         return payload
 
 

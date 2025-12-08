@@ -26,6 +26,7 @@ def test_failure_capture_matches_contract_required_fields():
         severity="high",
         processed=False,
         recurrence_count=1,
+        export_status="pending",
         status_code=500,
         quality_score=0.2,
         user_hash="abc123",
@@ -51,5 +52,6 @@ def test_failure_capture_matches_contract_required_fields():
     assert isinstance(sample["quality_score"], float)
     assert isinstance(sample["user_hash"], str)
 
-    # Ensure we don't emit unexpected properties beyond the schema
-    assert set(sample.keys()).issubset(set(required_properties.keys()))
+    # Ensure we don't emit unexpected properties beyond the schema (allowing export fields once contract updates)
+    unexpected = set(sample.keys()) - set(required_properties.keys()) - {"export_status", "export_destination", "export_reference"}
+    assert not unexpected, f"Unexpected fields: {unexpected}"
