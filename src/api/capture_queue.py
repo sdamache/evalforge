@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from google.cloud import firestore
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 def _iso(dt: datetime) -> str:
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=datetime.utcnow().astimezone().tzinfo)
+        dt = dt.replace(tzinfo=timezone.utc)
     return dt.isoformat()
 
 
