@@ -21,3 +21,9 @@ dev = [
   "pyyaml",
   "ddtrace",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: Integration tests that hit external services",
+    "live: Live tests that require credentials and external services",
+]

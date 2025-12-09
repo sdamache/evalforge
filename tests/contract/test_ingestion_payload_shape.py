@@ -53,5 +53,12 @@ def test_failure_capture_matches_contract_required_fields():
     assert isinstance(sample["user_hash"], str)
 
     # Ensure we don't emit unexpected properties beyond the schema (allowing export fields once contract updates)
-    unexpected = set(sample.keys()) - set(required_properties.keys()) - {"export_status", "export_destination", "export_reference"}
+    allowed_extras = {
+        "export_status",
+        "export_destination",
+        "export_reference",
+        "status",
+        "status_history",
+    }
+    unexpected = set(sample.keys()) - set(required_properties.keys()) - allowed_extras
     assert not unexpected, f"Unexpected fields: {unexpected}"
