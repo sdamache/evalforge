@@ -25,7 +25,15 @@ logger = get_logger(__name__)
 def get_firestore_client():
     if firestore is None:
         raise ImportError("google-cloud-firestore is not installed")
-    return firestore.Client()
+    settings = load_settings()
+    project = settings.firestore.project_id
+    database = settings.firestore.database_id
+    kwargs = {}
+    if project:
+        kwargs["project"] = project
+    if database:
+        kwargs["database"] = database
+    return firestore.Client(**kwargs)
 
 
 def _compute_backlog_size(collection) -> int | None:

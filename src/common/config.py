@@ -42,6 +42,13 @@ def _float_env(key: str, default: float) -> float:
         raise ConfigError(f"Invalid float for {key}: {raw}") from exc
 
 
+def _optional_env(key: str) -> Optional[str]:
+    value = os.getenv(key)
+    if value is None or value == "":
+        return None
+    return value
+
+
 @dataclass
 class DatadogConfig:
     api_key: str
@@ -55,6 +62,8 @@ class DatadogConfig:
 @dataclass
 class FirestoreConfig:
     collection_prefix: str
+    project_id: Optional[str] = None
+    database_id: str = "(default)"
 
 
 @dataclass
@@ -76,6 +85,8 @@ def load_settings() -> Settings:
 
     firestore = FirestoreConfig(
         collection_prefix=_get_env("FIRESTORE_COLLECTION_PREFIX", default="evalforge_"),
+        project_id=_optional_env("GOOGLE_CLOUD_PROJECT"),
+        database_id=_get_env("FIRESTORE_DATABASE_ID", default="(default)"),
     )
 
     return Settings(datadog=datadog, firestore=firestore)

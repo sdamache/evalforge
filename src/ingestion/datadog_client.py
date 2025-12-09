@@ -167,7 +167,7 @@ def fetch_recent_failures(
                 page_cursor=cursor,
             )
             try:
-                response, _, headers = api.list_spans_with_http_info(body=request, _return_http_data_only=False)
+                response, _, headers = api.list_spans(body=request)
             except ApiException as exc:
                 headers = getattr(exc, "headers", {}) or {}
                 if exc.status == 429:
