@@ -1,76 +1,81 @@
 import pytest
-from datadog_api_client.exceptions import ApiException
+import responses
+from responses import matchers
 
 from src.ingestion import datadog_client
 
 
+@responses.activate
 def test_fetch_recent_failures_handles_rate_limit(monkeypatch):
-    class FakeSpan:
-        def to_dict(self):
-            return {"trace_id": "t-rate", "trace_payload": {}}
-
-    class FakePage:
-        def __init__(self, after=None):
-            self.after = after
-
-    class FakeMeta:
-        def __init__(self, after=None):
-            self.page = FakePage(after=after)
-
-    class FakeResponse:
-        def __init__(self, after=None):
-            self.data = [FakeSpan()]
-            self.meta = FakeMeta(after=after)
-
-    class FakeApi:
-        def __init__(self):
-            self.calls = 0
-
-        def list_spans(self, *_, **__):
-            self.calls += 1
-            if self.calls == 1:
-                headers = {
-                    "Retry-After": "0",
-                    "X-RateLimit-Name": "core",
-                    "X-RateLimit-Remaining": "0",
-                    "X-RateLimit-Reset": "1",
-                }
-                exc = ApiException(status=429)
-                exc.status = 429
-                exc.headers = headers
-                raise exc
-            headers = {
-                "X-RateLimit-Name": "core",
-                "X-RateLimit-Remaining": "299",
-                "X-RateLimit-Reset": "60",
-            }
-            return FakeResponse(after=None), None, headers
-
+    """Test that rate limiting is handled correctly with retries."""
     monkeypatch.setenv("DATADOG_API_KEY", "test-key")
     monkeypatch.setenv("DATADOG_APP_KEY", "test-app")
     monkeypatch.setenv("DATADOG_SITE", "datadoghq.com")
     monkeypatch.setenv("TRACE_LOOKBACK_HOURS", "24")
     monkeypatch.setenv("QUALITY_THRESHOLD", "0.5")
-    monkeypatch.setattr(datadog_client, "_create_api", lambda settings: FakeApi())
-    monkeypatch.setattr(datadog_client, "_build_request", lambda **kwargs: {})
     monkeypatch.setattr(datadog_client.time, "sleep", lambda *_args, **_kwargs: None)
 
+    # First call returns 429 (rate limited)
+    responses.add(
+        responses.GET,
+        "https://api.datadoghq.com/api/v2/llm-obs/v1/spans/events",
+        status=429,
+        headers={
+            "Retry-After": "0",
+            "X-RateLimit-Name": "core",
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": "1",
+        },
+    )
+
+    # Second call succeeds
+    responses.add(
+        responses.GET,
+        "https://api.datadoghq.com/api/v2/llm-obs/v1/spans/events",
+        json={
+            "data": [
+                {
+                    "id": "test-span-1",
+                    "type": "span",
+                    "attributes": {
+                        "trace_id": "t-rate",
+                        "span_id": "s-rate",
+                        "name": "test-span",
+                        "status": "error",
+                        "ml_app": "test-app",
+                    }
+                }
+            ],
+            "meta": {"page": None}
+        },
+        status=200,
+        headers={
+            "X-RateLimit-Name": "core",
+            "X-RateLimit-Remaining": "299",
+            "X-RateLimit-Reset": "60",
+        },
+    )
+
     events = datadog_client.fetch_recent_failures()
-    assert events and events[0]["trace_id"] == "t-rate"
+    assert len(events) == 1
+    assert events[0]["trace_id"] == "t-rate"
     rate_limit = datadog_client.get_last_rate_limit_state()
     assert rate_limit["name"] == "core"
 
 
+@responses.activate
 def test_fetch_recent_failures_credentials_error(monkeypatch):
-    class FakeApi:
-        def list_spans(self, *_, **__):
-            raise ApiException(status=401, reason="Unauthorized")
-
+    """Test that credential errors are raised properly."""
     monkeypatch.setenv("DATADOG_API_KEY", "bad")
     monkeypatch.setenv("DATADOG_APP_KEY", "bad")
     monkeypatch.setenv("DATADOG_SITE", "datadoghq.com")
-    monkeypatch.setattr(datadog_client, "_create_api", lambda settings: FakeApi())
-    monkeypatch.setattr(datadog_client, "_build_request", lambda **kwargs: {})
+
+    responses.add(
+        responses.GET,
+        "https://api.datadoghq.com/api/v2/llm-obs/v1/spans/events",
+        status=401,
+        json={"errors": ["Unauthorized"]},
+    )
 
     with pytest.raises(datadog_client.CredentialError):
         datadog_client.fetch_recent_failures()

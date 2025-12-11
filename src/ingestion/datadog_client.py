@@ -2,21 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import time
 from typing import Any, Dict, List, Optional
 
-from datadog_api_client import ApiClient, Configuration
-from datadog_api_client.exceptions import ApiException
-from datadog_api_client.v2.api.spans_api import SpansApi
-from datadog_api_client.v2.model.spans_list_request import SpansListRequest
-from datadog_api_client.v2.model.spans_list_request_attributes import SpansListRequestAttributes
-from datadog_api_client.v2.model.spans_list_request_data import SpansListRequestData
-from datadog_api_client.v2.model.spans_list_request_page import SpansListRequestPage
-from datadog_api_client.v2.model.spans_list_request_type import SpansListRequestType
-from datadog_api_client.v2.model.spans_query_filter import SpansQueryFilter
-from datadog_api_client.v2.model.spans_query_options import SpansQueryOptions
-from datadog_api_client.v2.model.spans_sort import SpansSort
+import requests
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from src.common.config import Settings, load_settings
@@ -42,55 +32,55 @@ class CredentialError(Exception):
 
 
 
-def _build_query(
+def _build_query_params(
     *,
-    service_name: Optional[str],
-    quality_threshold: float,
-) -> str:
-    """Construct the Datadog search query for failures."""
-    clauses = [
-        f"llm_obs.quality_score:<{quality_threshold}",
-        "http.status_code:[400 TO *]",
-        "llm_obs.evaluations.hallucination:true",
-        "llm_obs.evaluations.prompt_injection:true",
-        "llm_obs.evaluations.toxicity_score:[0.7 TO *]",
-        "llm_obs.guardrails.failed:true",
-    ]
-    query = "(" + " OR ".join(clauses) + ")"
-    if service_name:
-        query = f"{query} service:{service_name}"
-    return query
-
-
-def _build_request(
-    *,
+    settings: Settings,
     lookback_hours: int,
     quality_threshold: float,
     service_name: Optional[str],
     page_cursor: Optional[str] = None,
-) -> SpansListRequest:
-    time_range = f"now-{lookback_hours}h"
-    query = _build_query(service_name=service_name, quality_threshold=quality_threshold)
-    attributes = SpansListRequestAttributes(
-        filter=SpansQueryFilter(_from=time_range, to="now", query=query),
-        options=SpansQueryOptions(timezone="UTC"),
-        page=SpansListRequestPage(limit=100, cursor=page_cursor),
-        sort=SpansSort("-timestamp"),
-    )
-    return SpansListRequest(
-        data=SpansListRequestData(
-            attributes=attributes,
-            type=SpansListRequestType("search_request"),
-        )
-    )
+) -> Dict[str, Any]:
+    """
+    Build query parameters for LLM Observability Export API.
+
+    Uses the Export API filter syntax instead of complex query strings.
+    Note: The Export API uses simpler filtering - we filter by status and tags
+    rather than complex query clauses.
+    """
+    now = datetime.now(tz=timezone.utc)
+    from_time = now - timedelta(hours=lookback_hours)
+
+    params: Dict[str, Any] = {
+        "filter[from]": from_time.isoformat(),
+        "filter[to]": now.isoformat(),
+        "filter[span_kind]": "llm",  # Only LLM spans
+        "filter[status]": "error",   # Only failures
+        "page[limit]": 100,
+        "sort": "-timestamp"
+    }
+
+    # Add ml_app filter if service_name is provided
+    if service_name:
+        params["filter[ml_app]"] = service_name
+
+    # Add pagination cursor if provided
+    if page_cursor:
+        params["page[cursor]"] = page_cursor
+
+    return params
 
 
-def _create_api(settings: Settings) -> SpansApi:
-    configuration = Configuration()
-    configuration.server_variables["site"] = settings.datadog.site
-    configuration.api_key = {"apiKeyAuth": settings.datadog.api_key, "appKeyAuth": settings.datadog.app_key}
-    api_client = ApiClient(configuration)
-    return SpansApi(api_client)
+def _build_request_url(settings: Settings) -> str:
+    """Build the LLM Observability Export API URL."""
+    return f"https://api.{settings.datadog.site}/api/v2/llm-obs/v1/spans/events"
+
+
+def _build_headers(settings: Settings) -> Dict[str, str]:
+    """Build HTTP headers for LLM Observability Export API."""
+    return {
+        "DD-API-KEY": settings.datadog.api_key,
+        "DD-APPLICATION-KEY": settings.datadog.app_key,
+    }
 
 
 def _extract_rate_limit_state(headers: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -136,13 +126,15 @@ def fetch_recent_failures(
     """
     Fetch recent Datadog LLM traces that meet failure criteria.
 
-    Returns a list of span dicts from the Datadog Spans API.
+    Uses the LLM Observability Export API to retrieve error spans.
+    Returns a list of span dicts from the Datadog LLM Observability Export API.
     """
     settings = load_settings()
     lookback = trace_lookback_hours or settings.datadog.trace_lookback_hours
     quality = quality_threshold if quality_threshold is not None else settings.datadog.quality_threshold
 
-    api = _create_api(settings)
+    url = _build_request_url(settings)
+    headers = _build_headers(settings)
 
     events: List[Dict[str, Any]] = []
     cursor: Optional[str] = None
@@ -160,22 +152,27 @@ def fetch_recent_failures(
             },
         )
         while True:
-            request = _build_request(
+            params = _build_query_params(
+                settings=settings,
                 lookback_hours=lookback,
                 quality_threshold=quality,
                 service_name=service_name,
                 page_cursor=cursor,
             )
+
             try:
-                response, _, headers = api.list_spans(body=request)
-            except ApiException as exc:
-                headers = getattr(exc, "headers", {}) or {}
-                if exc.status == 429:
-                    rate_limit_state = _extract_rate_limit_state(headers) or get_last_rate_limit_state()
-                    if rate_limit_state:
-                        global _LAST_RATE_LIMIT_STATE
-                        _LAST_RATE_LIMIT_STATE = rate_limit_state
-                    retry_after_raw = headers.get("Retry-After") or headers.get("retry-after")
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+
+                # Extract rate limit info from response headers
+                response_headers = dict(response.headers)
+                rate_limit_state = _extract_rate_limit_state(response_headers)
+                if rate_limit_state:
+                    global _LAST_RATE_LIMIT_STATE
+                    _LAST_RATE_LIMIT_STATE = rate_limit_state
+
+                # Handle HTTP errors
+                if response.status_code == 429:
+                    retry_after_raw = response.headers.get("Retry-After") or response.headers.get("retry-after")
                     retry_after = int(retry_after_raw) if retry_after_raw is not None else None
                     attempts += 1
                     backoff_seconds = min(max(retry_after or attempts, 1), settings.datadog.rate_limit_max_sleep)
@@ -189,25 +186,56 @@ def fetch_recent_failures(
                         },
                     )
                     if attempts >= 3:
-                        raise RateLimitError(retry_after, rate_limit_state) from exc
+                        raise RateLimitError(retry_after, rate_limit_state or get_last_rate_limit_state())
                     time.sleep(backoff_seconds)
                     continue
-                if exc.status in (401, 403):
-                    raise CredentialError("Datadog credentials are missing or invalid") from exc
-                raise
-            except Exception:
+
+                if response.status_code in (401, 403):
+                    raise CredentialError("Datadog credentials are missing or invalid")
+
+                # Raise for other HTTP errors
+                response.raise_for_status()
+
+                # Parse response
+                data = response.json()
+                spans = data.get("data", [])
+
+                # Extract span attributes from LLM Observability Export API response format
+                for span_resource in spans:
+                    span_attrs = span_resource.get("attributes", {})
+                    # Convert Export API format to internal format
+                    event = {
+                        "trace_id": span_attrs.get("trace_id"),
+                        "span_id": span_attrs.get("span_id"),
+                        "name": span_attrs.get("name"),
+                        "span_kind": span_attrs.get("span_kind"),
+                        "status": span_attrs.get("status"),
+                        "ml_app": span_attrs.get("ml_app"),
+                        "service_name": span_attrs.get("ml_app"),  # ml_app is the service name in LLM Obs
+                        "start_ns": span_attrs.get("start_ns"),
+                        "duration": span_attrs.get("duration"),
+                        "tags": span_attrs.get("tags", []),
+                        "metadata": span_attrs.get("metadata", {}),
+                        "input": span_attrs.get("input"),
+                        "output": span_attrs.get("output"),
+                        "metrics": span_attrs.get("metrics", {}),
+                    }
+                    events.append(event)
+
+                # Extract pagination cursor from response
+                meta = data.get("meta", {})
+                page_info = meta.get("page")
+                cursor = page_info.get("after") if page_info else None
+
+                attempts = 0  # Reset attempts on success
+                if not cursor:
+                    break
+
+            except requests.RequestException as exc:
+                # Handle network/connection errors
+                log_error(logger, "HTTP request failed", error=exc)
                 raise
 
-            spans = getattr(response, "data", []) or []
-            for span in spans:
-                events.append(span.to_dict() if hasattr(span, "to_dict") else dict(span))
-            rate_limit_state = _extract_rate_limit_state(headers)
-            if rate_limit_state:
-                _LAST_RATE_LIMIT_STATE = rate_limit_state
-            cursor = getattr(getattr(getattr(response, "meta", None), "page", None), "after", None)
-            attempts = 0
-            if not cursor:
-                break
         duration = time.perf_counter() - start
         logger.info(
             "datadog_query_success",
