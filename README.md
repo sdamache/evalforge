@@ -125,6 +125,25 @@ python -m src.ingestion.main
 python -m src.api.main
 ```
 
+### Creating Synthetic Datadog LLM Traces
+
+We ship `scripts/generate_llm_trace_samples.py` so you can unblock development before live LLM traffic exists.
+
+```bash
+# Generate 5 sanitized traces and write them to tests/data/datadog_llm_trace_samples.json
+python3 scripts/generate_llm_trace_samples.py --count 5
+
+# Emit YAML instead of JSON so you can edit payloads in an IDE
+python3 scripts/generate_llm_trace_samples.py --count 2 --format yaml --output /tmp/sample_traces.yaml
+
+# Push the same traces into a Datadog trial org (requires ddtrace + API key)
+DD_API_KEY=xxx python3 scripts/generate_llm_trace_samples.py --upload --count 3 --ml-app evalforge-demo
+```
+
+- Use `--site datadoghq.eu` or another site suffix to match your trial region.
+- The pytest fixture reads `tests/data/datadog_llm_trace_samples.json` by default. Override the path with
+  `DATADOG_TRACE_FIXTURE=/path/to/file.json pytest …` when you want to inspect different datasets.
+
 ## 📁 Project Structure
 
 ```
