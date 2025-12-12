@@ -83,6 +83,74 @@ def _build_headers(settings: Settings) -> Dict[str, str]:
     }
 
 
+def _extract_status_code_from_tags(tags: List[str]) -> Optional[int]:
+    """Extract HTTP status code from Datadog tags array."""
+    for tag in tags:
+        if tag.startswith("http.status_code:"):
+            try:
+                return int(tag.split(":", 1)[1])
+            except (ValueError, IndexError):
+                continue
+    return None
+
+
+def _derive_failure_type_and_severity(
+    status: str,
+    status_code: Optional[int],
+    quality_score: Optional[float],
+    tags: List[str],
+) -> tuple[str, str]:
+    """
+    Derive failure_type and severity from span attributes.
+
+    Based on failure classification signals from spec.md:
+    - HTTP failures: status_code >= 400
+    - Quality degradation: quality_score below threshold
+    - Evaluation flags: toxicity, hallucination, prompt_injection
+    - Guardrail failures: guardrails.failed tag
+    """
+    # Check tags for specific failure indicators
+    tag_set = set(tags)
+    has_guardrail_failure = any("guardrail" in t.lower() and "fail" in t.lower() for t in tags)
+    has_hallucination = any("hallucination" in t.lower() for t in tags)
+    has_prompt_injection = any("prompt_injection" in t.lower() or "prompt-injection" in t.lower() for t in tags)
+    has_toxicity = any("toxicity" in t.lower() for t in tags)
+
+    # Determine failure_type priority order
+    if has_guardrail_failure:
+        failure_type = "guardrail_failure"
+        severity = "critical"
+    elif has_prompt_injection:
+        failure_type = "prompt_injection"
+        severity = "critical"
+    elif has_toxicity:
+        failure_type = "toxicity"
+        severity = "high"
+    elif has_hallucination:
+        failure_type = "hallucination"
+        severity = "high"
+    elif status_code and status_code >= 500:
+        failure_type = "infrastructure_error"
+        severity = "high"
+    elif status_code and status_code >= 400:
+        failure_type = "client_error"
+        severity = "medium"
+    elif quality_score is not None and quality_score < 0.3:
+        failure_type = "quality_degradation"
+        severity = "high"
+    elif quality_score is not None and quality_score < 0.5:
+        failure_type = "quality_degradation"
+        severity = "medium"
+    elif status == "error":
+        failure_type = "llm_error"
+        severity = "medium"
+    else:
+        failure_type = "unknown"
+        severity = "medium"
+
+    return failure_type, severity
+
+
 def _extract_rate_limit_state(headers: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not headers:
         return None
@@ -203,22 +271,43 @@ def fetch_recent_failures(
                 # Extract span attributes from LLM Observability Export API response format
                 for span_resource in spans:
                     span_attrs = span_resource.get("attributes", {})
+
+                    # Extract core attributes
+                    tags = span_attrs.get("tags", [])
+                    status = span_attrs.get("status", "error")
+                    metrics = span_attrs.get("metrics", {})
+
+                    # Extract derived fields for FailureCapture
+                    status_code = _extract_status_code_from_tags(tags)
+                    quality_score = metrics.get("quality_score")  # May be in custom metrics
+                    failure_type, severity = _derive_failure_type_and_severity(
+                        status=status,
+                        status_code=status_code,
+                        quality_score=quality_score,
+                        tags=tags,
+                    )
+
                     # Convert Export API format to internal format
                     event = {
                         "trace_id": span_attrs.get("trace_id"),
                         "span_id": span_attrs.get("span_id"),
                         "name": span_attrs.get("name"),
                         "span_kind": span_attrs.get("span_kind"),
-                        "status": span_attrs.get("status"),
+                        "status": status,
                         "ml_app": span_attrs.get("ml_app"),
                         "service_name": span_attrs.get("ml_app"),  # ml_app is the service name in LLM Obs
                         "start_ns": span_attrs.get("start_ns"),
                         "duration": span_attrs.get("duration"),
-                        "tags": span_attrs.get("tags", []),
+                        "tags": tags,
                         "metadata": span_attrs.get("metadata", {}),
                         "input": span_attrs.get("input"),
                         "output": span_attrs.get("output"),
-                        "metrics": span_attrs.get("metrics", {}),
+                        "metrics": metrics,
+                        # Required fields for FailureCapture
+                        "failure_type": failure_type,
+                        "severity": severity,
+                        "status_code": status_code,
+                        "quality_score": quality_score,
                     }
                     events.append(event)
 
