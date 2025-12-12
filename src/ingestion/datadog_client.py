@@ -325,11 +325,36 @@ def fetch_recent_failures(
                 log_error(logger, "HTTP request failed", error=exc)
                 raise
 
+        # Post-fetch filtering by quality threshold
+        # Export API doesn't support quality_score filtering, so we filter in-memory
+        # Keep events where: quality_score is None (unknown) OR quality_score < threshold
+        # Lower quality score = worse quality, so < threshold means "poor quality"
+        filtered_events = []
+        for event in events:
+            q_score = event.get("quality_score")
+            if q_score is None or q_score < quality:
+                filtered_events.append(event)
+            else:
+                logger.debug(
+                    "filtered_by_quality",
+                    extra={
+                        "trace_id": event.get("trace_id"),
+                        "quality_score": q_score,
+                        "threshold": quality,
+                    },
+                )
+
         duration = time.perf_counter() - start
         logger.info(
             "datadog_query_success",
-            extra={"event": "datadog_query_success", "count": len(events), "duration_sec": round(duration, 3)},
+            extra={
+                "event": "datadog_query_success",
+                "fetched_count": len(events),
+                "filtered_count": len(filtered_events),
+                "duration_sec": round(duration, 3),
+            },
         )
+        events = filtered_events
     except Exception as exc:  # broad catch to surface in structured logs
         log_error(logger, "Failed to fetch Datadog failures", error=exc)
         raise
