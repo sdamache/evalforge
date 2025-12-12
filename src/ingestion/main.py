@@ -55,6 +55,7 @@ def deduplicate_by_trace_id(traces: List[Dict[str, Any]]) -> List[Dict[str, Any]
     for trace in traces:
         tid = trace.get("trace_id")
         if not tid:
+            log_error(logger, "Skipping trace without trace_id during deduplication", trace_id=None, trace_has_keys=list(trace.keys()))
             continue
         if tid in seen:
             seen[tid]["recurrence_count"] = seen[tid].get("recurrence_count", 1) + 1

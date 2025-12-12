@@ -53,6 +53,7 @@ This research spike validates how to ingest LLM failure traces from Datadog LLM 
 
 - [RESOLVED]: Validate the exact JSON shape of Datadog LLM Observability traces in our account and adjust field paths accordingly (via docs, UI, or API responses). → Field paths confirmed via docs: `http.status_code`, `llm_obs.quality_score`, `llm_obs.evaluations.hallucination`, `llm_obs.evaluations.prompt_injection`, `llm_obs.evaluations.toxicity_score`, and `llm_obs.guardrails.failed`.
 - [RESOLVED]: Confirm whether additional PII-like fields (including custom tags) need stripping or hashing before storage. → Strip `user.email`, `user.name`, `user.phone`, `user.address`, `user.ip`, `client.ip`, `session_id`, `request.headers.authorization`, `request.headers.cookie`, and tags prefixed `pii:` or `user.` (except `user.id`); hash `user.id` to `user_hash`.
+- [DEFERRED]: Service-specific filtering via `filter[ml_app]` parameter is implemented in the Datadog client (`datadog_client.py:63`) but not enforced by the ingestion orchestrator. MVP captures all LLM services; multi-service filtering will be added when expanding scope beyond initial agents.
 - [DEFERRED]: 90-day audit log retention is out of scope for the hackathon; keep lifecycle logs structured (ingestion and API emit `event`-keyed logs) and revisit long-term retention later.
 
 ## NFRs and guardrails (constitution-aligned)
