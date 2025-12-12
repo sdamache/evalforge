@@ -35,7 +35,7 @@ def query_failure_captures(
     """
     Read FailureCapture documents with filters and pagination.
 
-    Returns (records, next_cursor) where cursor is the last fetched_at ISO string.
+    Returns (records, next_cursor) where cursor is the last document's trace_id.
     """
     if firestore is None:
         raise ImportError("google-cloud-firestore is not installed")
@@ -52,8 +52,16 @@ def query_failure_captures(
         query = query.where("severity", "==", severity)
     if agent:
         query = query.where("service_name", "==", agent)
+
+    # Firestore pagination: start_after requires a DocumentSnapshot, not a string
+    # Fetch the cursor document and use its snapshot for proper pagination
     if page_cursor:
-        query = query.start_after(page_cursor)
+        try:
+            cursor_doc = collection.document(page_cursor).get()
+            if cursor_doc.exists:
+                query = query.start_after(cursor_doc)
+        except Exception as exc:
+            log_error(logger, "Failed to resolve page cursor", error=exc, trace_id=None)
 
     query = query.limit(page_size)
 
@@ -75,8 +83,10 @@ def query_failure_captures(
         if not data:
             continue
         records.append(data)
-    if records:
-        next_cursor = records[-1].get("fetched_at")
+
+    # Return last document's trace_id as cursor (document ID for proper pagination)
+    if docs:
+        next_cursor = docs[-1].id  # Use document ID instead of field value
 
     return records, next_cursor
 
