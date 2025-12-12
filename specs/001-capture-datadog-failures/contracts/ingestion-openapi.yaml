@@ -1,0 +1,87 @@
+openapi: 3.0.0
+info:
+  title: Evalforge Datadog Ingestion API
+  version: 0.1.0
+
+paths:
+  /health:
+    get:
+      summary: Health check for the ingestion service
+      responses:
+        '200':
+          description: Service is healthy
+
+  /ingestion/run-once:
+    post:
+      summary: Trigger a single ingestion run from Datadog into Firestore
+      description: >-
+        Kicks off an ingestion job that queries Datadog for recent LLM failures
+        and writes sanitized FailureCapture records into Firestore.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                traceLookbackHours:
+                  type: integer
+                  description: Overrides TRACE_LOOKBACK_HOURS for this run.
+                qualityThreshold:
+                  type: number
+                  format: float
+                  description: Overrides QUALITY_THRESHOLD for this run.
+      responses:
+        '202':
+          description: Ingestion job accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  startedAt:
+                    type: string
+                    format: date-time
+                  estimatedTraceCount:
+                    type: integer
+                required:
+                  - startedAt
+
+components:
+  schemas:
+    FailureCapture:
+      type: object
+      properties:
+        trace_id:
+          type: string
+        fetched_at:
+          type: string
+          format: date-time
+        status_code:
+          type: integer
+        quality_score:
+          type: number
+          format: float
+        failure_type:
+          type: string
+        trace_payload:
+          type: object
+        user_hash:
+          type: string
+        processed:
+          type: boolean
+        service_name:
+          type: string
+        severity:
+          type: string
+        recurrence_count:
+          type: integer
+      required:
+        - trace_id
+        - fetched_at
+        - failure_type
+        - trace_payload
+        - processed
+        - service_name
+        - severity
+        - recurrence_count
