@@ -108,6 +108,11 @@ def sanitize_trace(trace: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
     # Strip configured PII fields from payload
     for dotted in PII_FIELDS_TO_STRIP:
         _strip_nested(payload, dotted)
+        # Also strip flat keys in metadata (Datadog uses flat "user.email" keys)
+        if "metadata" in payload and isinstance(payload["metadata"], dict):
+            payload["metadata"].pop(dotted, None)
+            # Also try with underscores (user_id vs user.id)
+            payload["metadata"].pop(dotted.replace(".", "_"), None)
 
     user_hash = ""
     if user_id:
