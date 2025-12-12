@@ -8,10 +8,18 @@ This research spike validates how to ingest LLM failure traces from Datadog LLM 
 
 ### 1. Datadog LLM Observability trace fields
 
-- **Status**: RESOLVED – Confirmed using Datadog LLM Observability documentation and sample traces from the target account.  
-- **Decision (proposed)**: Use APM trace endpoint enriched with LLM Observability attributes (service name, status, quality score, eval flags, user metadata).
-- **Rationale**: Aligns with existing Datadog observability tooling and supports filtering by service and quality signals.
-- **Alternatives considered**: Dedicated logs-only integration (would lose trace-level causality) and synthetic events (would duplicate data and add cost).
+- **Status**: RESOLVED – Confirmed using Datadog LLM Observability Export API documentation and live testing against us5.datadoghq.com.
+- **Decision**: Use LLM Observability Export API (HTTP-only) at `/api/v2/llm-obs/v1/spans/events` for retrieving failure traces with LLM Observability attributes (service name, status, quality score, eval flags, user metadata).
+- **Rationale**:
+  - The general APM Spans API (`/api/v2/spans`) returns 500 Internal Server errors on the us5.datadoghq.com datacenter
+  - The `datadog-api-client` SDK has no methods for querying/retrieving LLM Observability spans (SDK is for instrumentation only)
+  - The Export API is intentionally HTTP-only and designed for external evaluations and span export use cases
+  - Direct HTTP requests using the `requests` library provide reliable access to error spans filtered by `filter[status]=error` and `filter[span_kind]=llm`
+- **Alternatives considered**:
+  - `datadog-api-client` SDK (no LLMObs retrieval methods exist; instrumentation-only)
+  - General APM Spans API at `/api/v2/spans/events` (returns 500 errors on us5 datacenter during testing)
+  - Dedicated logs-only integration (would lose trace-level causality)
+  - Synthetic events (would duplicate data and add cost)
 
 ### 2. Failure vs success classification
 
@@ -26,9 +34,9 @@ This research spike validates how to ingest LLM failure traces from Datadog LLM 
 
 ### 3. Rate limits and pagination
 
-- **Status**: RESOLVED (Datadog API rate limits doc + APM Events API pagination model, retrieved 2025-12-07).  
-- **Decision**: Treat APM/LLM trace search under the standard Datadog REST rate limit bucket of ~300 requests/minute per org (headers: `X-RateLimit-Limit`, `X-RateLimit-Period`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `X-RateLimit-Name`). Use cursor-based pagination from the APM Events API: set `page[limit]` (cap at 100 per call for safety), read `meta.page.after`, and pass it as `page[cursor]` until exhausted. Back off on 429 using `Retry-After` if present and jittered exponential retry otherwise.
-- **Rationale**: Aligns with Datadog’s documented API rate-limit headers and the APM Events pagination contract while keeping the ingestion run within scheduler windows.
+- **Status**: RESOLVED (Datadog LLM Observability Export API documentation, retrieved 2025-12-07, confirmed via live testing).
+- **Decision**: The LLM Observability Export API uses the standard Datadog REST rate limit bucket of ~300 requests/minute per org (headers: `X-RateLimit-Limit`, `X-RateLimit-Period`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `X-RateLimit-Name`). Use cursor-based pagination from the Export API: set `page[limit]` (cap at 100 per call for safety), read `meta.page.after` from the response, and pass it as `page[cursor]` in the next request until exhausted (when `meta.page` is `null`). Back off on 429 using `Retry-After` header if present and jittered exponential retry otherwise.
+- **Rationale**: Aligns with the LLM Observability Export API's documented pagination contract while keeping the ingestion run within scheduler windows and respecting rate limits.
 - **Alternatives considered**: Continuous streaming (higher complexity) and larger lookback windows (increases cost and risk of hitting limits).
 
 ### 4. PII stripping strategy

@@ -33,7 +33,7 @@ description: "Task list for Automatic Capture of Datadog Failures"
 
 - [x] T001 Create ingestion and common package structure in `src/ingestion/__init__.py` and `src/common/__init__.py`.
 - [x] T002 Create test package structure in `tests/integration/__init__.py`, `tests/contract/__init__.py`, and `tests/unit/__init__.py`.
-- [x] T003 [P] Declare ingestion dependencies (`datadog-api-client`, `google-cloud-firestore`, `google-cloud-secret-manager`, `tenacity`, `pytest`) in `pyproject.toml`.
+- [x] T003 [P] Declare ingestion dependencies (`requests`, `google-cloud-firestore`, `google-cloud-secret-manager`, `tenacity`, `pytest`) in `pyproject.toml`.
 
 ---
 

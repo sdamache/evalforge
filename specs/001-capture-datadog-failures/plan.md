@@ -10,12 +10,12 @@ This feature introduces an ingestion service that regularly pulls LLM failure tr
 ## Technical Context
 
 **Language/Version**: Python 3.11  
-**Primary Dependencies**: `datadog-api-client` (Python), Google Cloud client libraries (Firestore, Secret Manager), HTTP client, retry/backoff helper  
+**Primary Dependencies**: `requests` (HTTP client), Google Cloud client libraries (Firestore, Secret Manager), `tenacity` (retry/backoff helper)  
 **Storage**: Firestore collection `evalforge_raw_traces` (with prefixed collection name via `FIRESTORE_COLLECTION_PREFIX`)  
 **Testing**: pytest with integration tests against real Datadog and Vertex AI/Gemini where feasible, plus cached golden responses for CI cost control  
 **Target Platform**: Google Cloud Run (stateless service, HTTPS ingress)
 **Project Type**: Single backend service within existing Python project  
-**Performance Goals**: Each scheduled run (default 5-minute cadence, configurable) must clear a 24h lookback within the pod’s execution window while staying below ~200 requests/minute average (headroom under the 300 req/min org limit). Use `page[limit]=100` on APM/LLM trace search to keep latency predictable and cap total calls per run at ~2.5k (25 minutes of budgeted capacity if fully saturated, still below limit with retries).  
+**Performance Goals**: Each scheduled run (default 5-minute cadence, configurable) must clear a 24h lookback within the pod's execution window while staying below ~200 requests/minute average (headroom under the 300 req/min org limit). Use `page[limit]=100` on LLM Observability Export API GET requests to keep latency predictable and cap total calls per run at ~2.5k (25 minutes of budgeted capacity if fully saturated, still below limit with retries).  
 **Constraints**: Datadog REST APIs expose rate-limit headers (`X-RateLimit-Limit/Period/Remaining/Reset/Name`) and return 429 when exceeded; default org bucket is ~300 requests/minute. Ingestion must read headers, back off using `Retry-After` when present, apply jittered exponential retry for 429/5xx, and stop pagination when `meta.page.after` is absent.  
 **Scale/Scope**: Initial focus on a manageable subset of LLM agents (single Datadog service tag), expandable to more services after validating performance and cost
 
