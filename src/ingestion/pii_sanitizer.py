@@ -38,6 +38,29 @@ def _strip_nested(data: Dict[str, Any], dotted_path: str) -> None:
         target = target.get(key)
 
 
+def _filter_pii_tags(tags: list[str]) -> list[str]:
+    """
+    Remove PII-containing tags from the tags list.
+
+    Strips tags matching:
+    - pii:* (explicit PII tags)
+    - user.* (user-related tags, which may contain PII)
+
+    Per spec/research.md: only user.id is allowed (for hashing), all other
+    user.* tags should be dropped to prevent PII leakage.
+    """
+    filtered = []
+    for tag in tags:
+        # Strip explicit PII tags
+        if tag.startswith("pii:"):
+            continue
+        # Strip user.* tags (user_id extraction happens separately)
+        if tag.startswith("user.") or tag.startswith("user_"):
+            continue
+        filtered.append(tag)
+    return filtered
+
+
 def sanitize_trace(trace: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
     """
     Strip PII-like fields and compute a user hash if possible.
@@ -59,7 +82,7 @@ def sanitize_trace(trace: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
         "input": trace.get("input"),
         "output": trace.get("output"),
         "metadata": dict(trace.get("metadata", {})),
-        "tags": list(trace.get("tags", [])),
+        "tags": _filter_pii_tags(trace.get("tags", [])),  # Filter PII tags before storage
         "metrics": dict(trace.get("metrics", {})),
         "name": trace.get("name"),
         "span_kind": trace.get("span_kind"),
