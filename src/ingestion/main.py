@@ -82,8 +82,11 @@ def _write_failure(firestore_client, collection_name: str, capture: FailureCaptu
         capture.export_reference = existing_data.get("export_reference", capture.export_reference)
 
         # Preserve and increment recurrence_count for re-observed traces
+        # Account for batch count: if deduplicate_by_trace_id saw this trace N times
+        # in the current batch, add N to the existing count (not just +1)
         existing_count = existing_data.get("recurrence_count", 1)
-        capture.recurrence_count = existing_count + 1
+        incoming_batch_count = capture.recurrence_count
+        capture.recurrence_count = existing_count + incoming_batch_count
 
         # Add status history entry for re-observation
         capture.status_history.append({
