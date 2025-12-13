@@ -43,10 +43,10 @@
 
 **⚠️ CRITICAL**: Deploy script (US2) cannot work without this Dockerfile
 
-- [ ] T004 Create Dockerfile with python:3.11-slim base image at repository root
-- [ ] T005 Add pip install -e . to install package from pyproject.toml in Dockerfile
-- [ ] T006 Configure PORT environment variable and uvicorn entrypoint in Dockerfile
-- [ ] T007 Test local Docker build with `docker build -t evalforge-ingestion .` at repository root
+- [x] T004 Create Dockerfile with python:3.11-slim base image at repository root
+- [x] T005 Add pip install -e . to install package from pyproject.toml in Dockerfile
+- [x] T006 Configure PORT environment variable and uvicorn entrypoint in Dockerfile
+- [x] T007 Test local Docker build with `docker build -t evalforge-ingestion .` at repository root
 
 **Checkpoint**: Container image builds locally - deployment script development can begin
 
