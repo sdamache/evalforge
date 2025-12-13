@@ -133,7 +133,7 @@ deploy_cloud_run() {
     --cpu=1 \
     --min-instances=0 \
     --max-instances=10 \
-    --ingress=internal-and-cloud-load-balancing \
+    --ingress=all \
     --no-allow-unauthenticated \
     --labels="managed-by=evalforge" \
     --quiet || {
@@ -145,7 +145,7 @@ deploy_cloud_run() {
   # - --set-secrets: Mounts secrets as env vars at runtime (never in image)
   # - --min-instances=0: Scale to zero when idle (cost savings)
   # - --max-instances=10: Prevent runaway scaling
-  # - --ingress=internal-and-cloud-load-balancing: Only Cloud Scheduler can call
+  # - --ingress=all: Allow Cloud Scheduler HTTP calls (auth still required)
   # - --no-allow-unauthenticated: Requires OIDC token (Cloud Scheduler provides)
   # - --labels: Enable filtering with gcloud run services list --filter="labels.managed-by=evalforge"
 
