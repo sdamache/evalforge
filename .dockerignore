@@ -1,0 +1,62 @@
+# Docker ignore file for EvalForge
+# Excludes files not needed in the container image
+
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+.venv/
+venv/
+evalforge_venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment files (secrets)
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Specifications (not needed in container)
+specs/
+.specify/
+
+# Docker files (avoid recursive copy)
+Dockerfile*
+.dockerignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

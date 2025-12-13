@@ -28,9 +28,9 @@
 **Purpose**: Project structure validation and container configuration
 **Estimated Time**: ~10 min
 
-- [ ] T001 Verify scripts/ directory exists and contains bootstrap_firestore.py in scripts/
-- [ ] T002 [P] Create .dockerignore to exclude .git, tests/, venv/, __pycache__/, *.pyc, .env* at repository root
-- [ ] T003 [P] Create .gcloudignore to exclude .git, tests/, venv/, __pycache__/, *.pyc, .env*, docs/ at repository root
+- [x] T001 Verify scripts/ directory exists and contains bootstrap_firestore.py in scripts/
+- [x] T002 [P] Create .dockerignore to exclude .git, tests/, venv/, __pycache__/, *.pyc, .env* at repository root
+- [x] T003 [P] Create .gcloudignore to exclude .git, tests/, venv/, __pycache__/, *.pyc, .env*, docs/ at repository root
 
 **Checkpoint**: Project structure ready for script and container development
 

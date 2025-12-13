@@ -85,7 +85,7 @@ credentials*.json
 # =============================================================================
 # Google Cloud
 # =============================================================================
-.gcloudignore
+# Note: .gcloudignore is intentionally tracked for GCP automation (Issue #11)
 application_default_credentials.json
 
 # =============================================================================
