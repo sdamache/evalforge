@@ -65,22 +65,22 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Create bootstrap_gcp.sh skeleton with shebang and set -euo pipefail in scripts/bootstrap_gcp.sh
-- [ ] T009 [US1] Add log_info() and log_error() helper functions with timestamps in scripts/bootstrap_gcp.sh
-- [ ] T010 [US1] Add environment variable validation (GCP_PROJECT_ID required, GCP_REGION optional with default) in scripts/bootstrap_gcp.sh
-- [ ] T011 [US1] Add gcloud project configuration and auth check in scripts/bootstrap_gcp.sh
-- [ ] T012 [US1] Implement enable_api() function with idempotent check in scripts/bootstrap_gcp.sh
-- [ ] T013 [US1] Add API enablement calls for firestore, run, secretmanager, cloudscheduler, cloudbuild in scripts/bootstrap_gcp.sh
-- [ ] T014 [US1] Implement create_firestore_database() with existence check in scripts/bootstrap_gcp.sh
-- [ ] T015 [US1] Implement create_service_account() with existence check and description "Managed by evalforge automation" in scripts/bootstrap_gcp.sh
-- [ ] T016 [US1] Implement grant_iam_role() for datastore.user and secretmanager.secretAccessor in scripts/bootstrap_gcp.sh
-- [ ] T017 [US1] Implement create_secret() with placeholder value, label "managed-by=evalforge", and existence check in scripts/bootstrap_gcp.sh
-- [ ] T018 [US1] Add secret creation calls for datadog-api-key and datadog-app-key in scripts/bootstrap_gcp.sh
-- [ ] T019 [US1] Implement grant_secret_access() for service account in scripts/bootstrap_gcp.sh
-- [ ] T020 [US1] Add call to existing bootstrap_firestore.py for collection setup in scripts/bootstrap_gcp.sh
-- [ ] T021 [US1] Add final success message with next steps instructions in scripts/bootstrap_gcp.sh
-- [ ] T022 [US1] Make script executable with chmod +x scripts/bootstrap_gcp.sh
-- [ ] T023 [US1] Test idempotency by running bootstrap_gcp.sh twice in same project
+- [x] T008 [US1] Create bootstrap_gcp.sh skeleton with shebang and set -euo pipefail in scripts/bootstrap_gcp.sh
+- [x] T009 [US1] Add log_info() and log_error() helper functions with timestamps in scripts/bootstrap_gcp.sh
+- [x] T010 [US1] Add environment variable validation (GCP_PROJECT_ID required, GCP_REGION optional with default) in scripts/bootstrap_gcp.sh
+- [x] T011 [US1] Add gcloud project configuration and auth check in scripts/bootstrap_gcp.sh
+- [x] T012 [US1] Implement enable_api() function with idempotent check in scripts/bootstrap_gcp.sh
+- [x] T013 [US1] Add API enablement calls for firestore, run, secretmanager, cloudscheduler, cloudbuild in scripts/bootstrap_gcp.sh
+- [x] T014 [US1] Implement create_firestore_database() with existence check in scripts/bootstrap_gcp.sh
+- [x] T015 [US1] Implement create_service_account() with existence check and description "Managed by evalforge automation" in scripts/bootstrap_gcp.sh
+- [x] T016 [US1] Implement grant_iam_role() for datastore.user and secretmanager.secretAccessor in scripts/bootstrap_gcp.sh
+- [x] T017 [US1] Implement create_secret() with placeholder value, label "managed-by=evalforge", and existence check in scripts/bootstrap_gcp.sh
+- [x] T018 [US1] Add secret creation calls for datadog-api-key and datadog-app-key in scripts/bootstrap_gcp.sh
+- [x] T019 [US1] Implement grant_secret_access() for service account in scripts/bootstrap_gcp.sh
+- [x] T020 [US1] Add call to existing bootstrap_firestore.py for collection setup in scripts/bootstrap_gcp.sh
+- [x] T021 [US1] Add final success message with next steps instructions in scripts/bootstrap_gcp.sh
+- [x] T022 [US1] Make script executable with chmod +x scripts/bootstrap_gcp.sh
+- [x] T023 [US1] Test idempotency by running bootstrap_gcp.sh twice in same project
 
 **Checkpoint**: Bootstrap script complete - infrastructure provisioning works in <10 minutes
 
