@@ -10,7 +10,7 @@ set -euo pipefail
 #=============================================================================
 
 log_info() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $*"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $*" >&2
 }
 
 log_error() {
@@ -18,7 +18,7 @@ log_error() {
 }
 
 log_success() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $*"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $*" >&2
 }
 
 #=============================================================================
@@ -124,28 +124,57 @@ get_service_url() {
 }
 
 #=============================================================================
-# Create Cloud Scheduler Job (Idempotent)
+# Create or Update Cloud Scheduler Job (Idempotent with Best Practices)
 #=============================================================================
 
-create_scheduler_job() {
+create_or_update_scheduler_job() {
   local service_url="$1"
   local job_name="${SERVICE_NAME}-trigger"
 
   log_info "Setting up Cloud Scheduler job: ${job_name}..."
 
-  # Check if job already exists and delete if it does (for idempotency)
+  # Check if job already exists
   if gcloud scheduler jobs describe "${job_name}" \
     --location="${GCP_REGION}" \
     --project="${GCP_PROJECT_ID}" \
     --quiet &>/dev/null; then
-    log_info "Scheduler job already exists, deleting for update..."
-    gcloud scheduler jobs delete "${job_name}" \
+
+    log_info "Scheduler job already exists, attempting update..."
+
+    # Try to update the existing job (preferred approach)
+    if gcloud scheduler jobs update http "${job_name}" \
       --location="${GCP_REGION}" \
       --project="${GCP_PROJECT_ID}" \
-      --quiet || {
-        log_error "Failed to delete existing scheduler job"
-        exit 1
-      }
+      --schedule="${INGESTION_SCHEDULE}" \
+      --uri="${service_url}/ingestion/run-once" \
+      --http-method=POST \
+      --oidc-service-account-email="${SERVICE_ACCOUNT_EMAIL}" \
+      --oidc-token-audience="${service_url}" \
+      --time-zone="UTC" \
+      --attempt-deadline=600s \
+      --update-labels="managed-by=evalforge" \
+      --quiet 2>/dev/null; then
+      log_info "Scheduler job updated successfully: ${job_name}"
+      return 0
+    else
+      # Update failed - pause, delete, and recreate
+      log_info "Update failed, recreating job..."
+
+      # Pause the job before deletion to prevent in-flight executions
+      gcloud scheduler jobs pause "${job_name}" \
+        --location="${GCP_REGION}" \
+        --project="${GCP_PROJECT_ID}" \
+        --quiet &>/dev/null || true
+
+      # Delete the job
+      gcloud scheduler jobs delete "${job_name}" \
+        --location="${GCP_REGION}" \
+        --project="${GCP_PROJECT_ID}" \
+        --quiet || {
+          log_error "Failed to delete existing scheduler job"
+          exit 1
+        }
+    fi
   fi
 
   # Create new scheduler job with OIDC authentication
@@ -160,14 +189,13 @@ create_scheduler_job() {
     --oidc-token-audience="${service_url}" \
     --time-zone="UTC" \
     --attempt-deadline=600s \
-    --labels="managed-by=evalforge" \
     --quiet || {
       log_error "Failed to create scheduler job"
       log_error "Ensure Cloud Scheduler API is enabled and service account exists"
       exit 1
     }
 
-  log_info "Cloud Scheduler job created: ${job_name}"
+  log_info "Cloud Scheduler job created successfully: ${job_name}"
 }
 
 #=============================================================================
@@ -185,7 +213,7 @@ main() {
   SERVICE_URL=$(get_service_url)
 
   # Step 4: Create/update Cloud Scheduler job
-  create_scheduler_job "${SERVICE_URL}"
+  create_or_update_scheduler_job "${SERVICE_URL}"
 
   # Success message with next steps
   log_success "Deployment complete!"

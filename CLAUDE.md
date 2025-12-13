@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Evalforge (Incident-to-Insight Loop) transforms LLM production failures from Datadog into actionable outputs: eval test cases, guardrail rules, and runbook entries. It fetches LLM traces from Datadog, extracts failure patterns, and stores them in Firestore for downstream processing.
 
+## GCP Configuration
+
+**Project ID**: `konveyn2ai`
+**Region**: `us-central1` (default)
+
+```bash
+# For infrastructure automation scripts
+export GCP_PROJECT_ID="konveyn2ai"
+```
+
 ## Build & Development Commands
 
 ```bash

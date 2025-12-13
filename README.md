@@ -58,7 +58,7 @@ When LLM agents fail in production:
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                    Vertex AI                             │  │
-│  │  • Gemini 2.0 Flash for pattern extraction               │  │
+│  │  • Gemini 2.5 Flash for pattern extraction               │  │
 │  │  • Embeddings for similarity detection                   │  │
 │  └──────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────┘
@@ -111,7 +111,7 @@ FIRESTORE_COLLECTION_PREFIX=i2i_
 
 # Vertex AI
 VERTEX_AI_LOCATION=us-central1
-GEMINI_MODEL=gemini-2.0-flash-001
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ### Running Locally
@@ -192,7 +192,7 @@ evalforge/
 | Runtime   | Python 3.11 |
 | API Framework | FastAPI |
 | Cloud Platform | Google Cloud Run |
-| AI/ML | Vertex AI (Gemini 2.0 Flash) |
+| AI/ML | Vertex AI (Gemini 2.5 Flash) |
 | Database | Firestore |
 | Observability | Datadog LLM Observability |
 | CI/CD | GitHub Actions |
