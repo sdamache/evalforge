@@ -180,6 +180,32 @@ get_service_url() {
 }
 
 #=============================================================================
+# Grant Cloud Run Invoker Role (Required for Cloud Scheduler)
+# Cloud Scheduler uses OIDC tokens to authenticate, but the service account
+# still needs permission to invoke the Cloud Run service. Without this role,
+# scheduled calls will return 403 Forbidden.
+#=============================================================================
+
+grant_run_invoker() {
+  log_info "Granting Cloud Run invoker role to service account..."
+
+  # Grant roles/run.invoker on the specific Cloud Run service
+  # This is idempotent - adding existing binding is a no-op
+  gcloud run services add-iam-policy-binding "${SERVICE_NAME}" \
+    --region="${GCP_REGION}" \
+    --project="${GCP_PROJECT_ID}" \
+    --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+    --role="roles/run.invoker" \
+    --quiet &>/dev/null || {
+      log_error "Failed to grant Cloud Run invoker role"
+      log_error "Ensure Cloud Run service exists and you have IAM permissions"
+      exit 1
+    }
+
+  log_info "Cloud Run invoker role granted to ${SERVICE_ACCOUNT_NAME}"
+}
+
+#=============================================================================
 # Create or Update Cloud Scheduler Job (Idempotent with Best Practices)
 # Cloud Scheduler triggers the ingestion service on a cron schedule.
 # Uses OIDC authentication so only GCP-authenticated requests are accepted.
@@ -205,6 +231,7 @@ create_or_update_scheduler_job() {
     log_info "Scheduler job already exists, attempting update..."
 
     # Try to update the existing job (preferred approach - no downtime)
+    # Note: Cloud Scheduler doesn't support labels via gcloud CLI (only via API/Terraform)
     if gcloud scheduler jobs update http "${job_name}" \
       --location="${GCP_REGION}" \
       --project="${GCP_PROJECT_ID}" \
@@ -215,7 +242,6 @@ create_or_update_scheduler_job() {
       --oidc-token-audience="${service_url}" \
       --time-zone="UTC" \
       --attempt-deadline=600s \
-      --update-labels="managed-by=evalforge" \
       --quiet 2>/dev/null; then
       log_info "Scheduler job updated successfully: ${job_name}"
       return 0
@@ -242,6 +268,7 @@ create_or_update_scheduler_job() {
 
   # Create new scheduler job with OIDC authentication
   # OIDC ensures only authenticated GCP services can trigger the endpoint
+  # Note: Cloud Scheduler doesn't support labels via gcloud CLI (only via API/Terraform)
   log_info "Creating Cloud Scheduler job with schedule: ${INGESTION_SCHEDULE}..."
   gcloud scheduler jobs create http "${job_name}" \
     --location="${GCP_REGION}" \
@@ -270,9 +297,10 @@ create_or_update_scheduler_job() {
 # Main Execution Flow
 # Orchestrates the deployment steps in order. Each step depends on the previous:
 #   1. Build image (required for deploy)
-#   2. Deploy to Cloud Run (required for URL)
+#   2. Deploy to Cloud Run (required for URL and IAM)
 #   3. Get service URL (required for scheduler)
-#   4. Configure scheduler (uses service URL)
+#   4. Grant invoker role (required for scheduler to call service)
+#   5. Configure scheduler (uses service URL)
 #=============================================================================
 
 main() {
@@ -285,7 +313,10 @@ main() {
   # Step 3: Get the service URL from deployed service
   SERVICE_URL=$(get_service_url)
 
-  # Step 4: Create/update Cloud Scheduler job pointing to service URL
+  # Step 4: Grant invoker role so Cloud Scheduler can call the service
+  grant_run_invoker
+
+  # Step 5: Create/update Cloud Scheduler job pointing to service URL
   create_or_update_scheduler_job "${SERVICE_URL}"
 
   # Success message with next steps for verification

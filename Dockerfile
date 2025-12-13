@@ -6,18 +6,17 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Copy dependency specifications
+# Copy dependency specifications and source code
+# Note: Source must be present BEFORE pip install -e . for editable install to work
 COPY pyproject.toml ./
+COPY src/ ./src/
 
-# Install dependencies from pyproject.toml
-# Note: We install the package in editable mode to make src/ importable
+# Install package in editable mode (makes src/ importable as a package)
+# This also installs all dependencies from pyproject.toml
 RUN pip install --no-cache-dir -e .
 
 # Install uvicorn (web server) - not in pyproject.toml but required for Cloud Run
 RUN pip install --no-cache-dir uvicorn[standard]
-
-# Copy application source code
-COPY src/ ./src/
 
 # Environment variables
 # PORT is automatically injected by Cloud Run (defaults to 8080)
