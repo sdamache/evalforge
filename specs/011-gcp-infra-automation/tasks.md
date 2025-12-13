@@ -112,7 +112,7 @@
 - [x] T032 [US2] Add idempotent scheduler job handling (delete if exists, then create) in scripts/deploy.sh
 - [x] T033 [US2] Add final success message with service URL and scheduler info in scripts/deploy.sh
 - [x] T034 [US2] Make script executable with chmod +x scripts/deploy.sh
-- [ ] T035 [US2] Test deployment end-to-end in GCP project
+- [x] T035 [US2] Test deployment end-to-end in GCP project
 
 **Checkpoint**: Deploy script complete - full deployment works in <5 minutes
 
