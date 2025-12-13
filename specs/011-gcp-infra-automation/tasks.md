@@ -101,17 +101,17 @@
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Create deploy.sh skeleton with shebang and set -euo pipefail in scripts/deploy.sh
-- [ ] T025 [US2] Add log_info() and log_error() helper functions (can copy from bootstrap) in scripts/deploy.sh
-- [ ] T026 [US2] Add environment variable validation and defaults in scripts/deploy.sh
-- [ ] T027 [US2] Implement build_image() using gcloud builds submit in scripts/deploy.sh
-- [ ] T028 [US2] Implement deploy_cloud_run() with service account, secrets attachment, and label "managed-by=evalforge" in scripts/deploy.sh
-- [ ] T029 [US2] Add environment variable injection for DATADOG_SITE, FIRESTORE_COLLECTION_PREFIX in scripts/deploy.sh
-- [ ] T030 [US2] Implement get_service_url() to retrieve deployed service URL in scripts/deploy.sh
-- [ ] T031 [US2] Implement create_scheduler_job() with OIDC authentication and label "managed-by=evalforge" in scripts/deploy.sh
-- [ ] T032 [US2] Add idempotent scheduler job handling (delete if exists, then create) in scripts/deploy.sh
-- [ ] T033 [US2] Add final success message with service URL and scheduler info in scripts/deploy.sh
-- [ ] T034 [US2] Make script executable with chmod +x scripts/deploy.sh
+- [x] T024 [US2] Create deploy.sh skeleton with shebang and set -euo pipefail in scripts/deploy.sh
+- [x] T025 [US2] Add log_info() and log_error() helper functions (can copy from bootstrap) in scripts/deploy.sh
+- [x] T026 [US2] Add environment variable validation and defaults in scripts/deploy.sh
+- [x] T027 [US2] Implement build_image() using gcloud builds submit in scripts/deploy.sh
+- [x] T028 [US2] Implement deploy_cloud_run() with service account, secrets attachment, and label "managed-by=evalforge" in scripts/deploy.sh
+- [x] T029 [US2] Add environment variable injection for DATADOG_SITE, FIRESTORE_COLLECTION_PREFIX in scripts/deploy.sh
+- [x] T030 [US2] Implement get_service_url() to retrieve deployed service URL in scripts/deploy.sh
+- [x] T031 [US2] Implement create_scheduler_job() with OIDC authentication and label "managed-by=evalforge" in scripts/deploy.sh
+- [x] T032 [US2] Add idempotent scheduler job handling (delete if exists, then create) in scripts/deploy.sh
+- [x] T033 [US2] Add final success message with service URL and scheduler info in scripts/deploy.sh
+- [x] T034 [US2] Make script executable with chmod +x scripts/deploy.sh
 - [ ] T035 [US2] Test deployment end-to-end in GCP project
 
 **Checkpoint**: Deploy script complete - full deployment works in <5 minutes
