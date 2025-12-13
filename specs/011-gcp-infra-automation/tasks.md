@@ -123,11 +123,11 @@
 **Purpose**: Verify end-to-end workflow and idempotency
 **Estimated Time**: ~15 min
 
-- [ ] T036 Test fresh project workflow: bootstrap → update secrets → deploy in new GCP project
-- [ ] T037 Test idempotency: run bootstrap twice, verify "already exists" messages
-- [ ] T038 Test idempotency: run deploy twice, verify service updates without errors
-- [ ] T039 Test scheduler trigger: manually run job and verify Cloud Run logs show execution
-- [ ] T040 Verify quickstart.md instructions match actual script behavior
+- [x] T036 Test fresh project workflow: bootstrap → update secrets → deploy in new GCP project
+- [x] T037 Test idempotency: run bootstrap twice, verify "already exists" messages
+- [x] T038 Test idempotency: run deploy twice, verify service updates without errors
+- [x] T039 Test scheduler trigger: manually run job and verify Cloud Run logs show execution
+- [x] T040 Verify quickstart.md instructions match actual script behavior
 
 **Checkpoint**: All user stories validated, ready for hackathon use
 
@@ -138,10 +138,10 @@
 **Purpose**: Final cleanup and documentation updates
 **Estimated Time**: ~10 min (optional, can skip for hackathon)
 
-- [ ] T041 [P] Add inline comments explaining key sections in scripts/bootstrap_gcp.sh
-- [ ] T042 [P] Add inline comments explaining key sections in scripts/deploy.sh
-- [ ] T043 Update README.md with infrastructure setup instructions at repository root
-- [ ] T044 Verify all scripts follow constitution observability requirements (structured logs)
+- [x] T041 [P] Add inline comments explaining key sections in scripts/bootstrap_gcp.sh
+- [x] T042 [P] Add inline comments explaining key sections in scripts/deploy.sh
+- [x] T043 Update README.md with infrastructure setup instructions at repository root
+- [x] T044 Verify all scripts follow constitution observability requirements (structured logs)
 
 ---
 

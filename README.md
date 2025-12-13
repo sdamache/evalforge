@@ -69,9 +69,9 @@ When LLM agents fail in production:
 ### Prerequisites
 
 - Python 3.11+
-- Google Cloud SDK
+- Google Cloud SDK (`gcloud` CLI)
 - Datadog account with LLM Observability enabled
-- Docker (for local development)
+- Docker (for local development only - not needed for cloud deployment)
 
 ### Environment Setup
 
@@ -124,6 +124,30 @@ docker-compose up
 python -m src.ingestion.main
 python -m src.api.main
 ```
+
+### 🌥️ GCP Cloud Deployment
+
+Deploy to Google Cloud Run with automated infrastructure provisioning:
+
+```bash
+# 1. Set your GCP project (with billing enabled)
+export GCP_PROJECT_ID="your-project-id"
+
+# 2. Bootstrap GCP infrastructure (APIs, service account, secrets, Firestore)
+./scripts/bootstrap_gcp.sh
+
+# 3. Update Datadog secrets with actual credentials
+echo -n "your-api-key" | gcloud secrets versions add datadog-api-key --data-file=- --project=$GCP_PROJECT_ID
+echo -n "your-app-key" | gcloud secrets versions add datadog-app-key --data-file=- --project=$GCP_PROJECT_ID
+
+# 4. Deploy to Cloud Run with scheduled triggers
+./scripts/deploy.sh
+
+# 5. Verify deployment
+gcloud scheduler jobs run evalforge-ingestion-trigger --location=us-central1 --project=$GCP_PROJECT_ID
+```
+
+For detailed instructions, see [GCP Quickstart Guide](specs/011-gcp-infra-automation/quickstart.md).
 
 ### Creating Synthetic Datadog LLM Traces
 
