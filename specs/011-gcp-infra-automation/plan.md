@@ -149,9 +149,9 @@ evalforge/
 **Responsibilities**:
 - Enable GCP APIs using `gcloud services enable`
 - Create Firestore database (native mode) in specified region
-- Create service account with descriptive name
+- Create service account with descriptive name and description "Managed by evalforge automation"
 - Grant minimal IAM roles (Firestore User, Secret Accessor)
-- Create Secret Manager secrets with placeholder values
+- Create Secret Manager secrets with placeholder values and `managed-by=evalforge` label
 - Grant service account access to secrets
 - Call existing `bootstrap_firestore.py` to create collections
 
@@ -172,10 +172,10 @@ evalforge/
 **Responsibilities**:
 - Build Docker image using Cloud Build (remote build, not local)
 - Tag image with `latest` and push to GCR
-- Deploy Cloud Run service with environment variables and secrets
+- Deploy Cloud Run service with environment variables, secrets, and `managed-by=evalforge` label
 - Configure service account attachment
 - Set resource limits (512Mi memory, 1 CPU, max 10 instances)
-- Create/update Cloud Scheduler job with OIDC authentication
+- Create/update Cloud Scheduler job with OIDC authentication and `managed-by=evalforge` label
 - Output service URL and scheduler status
 
 **Idempotency Strategy**:
@@ -266,10 +266,31 @@ evalforge/
 
 ## Secret Manager Schema
 
-| Secret Name | Initial Value | Access |
-|-------------|---------------|--------|
-| `datadog-api-key` | `REPLACE_WITH_ACTUAL_API_KEY` | `evalforge-ingestion-sa` |
-| `datadog-app-key` | `REPLACE_WITH_ACTUAL_APP_KEY` | `evalforge-ingestion-sa` |
+| Secret Name | Initial Value | Access | Labels |
+|-------------|---------------|--------|--------|
+| `datadog-api-key` | `REPLACE_WITH_ACTUAL_API_KEY` | `evalforge-ingestion-sa` | `managed-by=evalforge` |
+| `datadog-app-key` | `REPLACE_WITH_ACTUAL_APP_KEY` | `evalforge-ingestion-sa` | `managed-by=evalforge` |
+
+## Resource Labels
+
+All GCP resources that support labels are tagged with `managed-by=evalforge`:
+
+| Resource | Supports Labels | Applied |
+|----------|-----------------|---------|
+| Cloud Run service | ✅ Yes | `managed-by=evalforge` |
+| Cloud Scheduler job | ✅ Yes | `managed-by=evalforge` |
+| Secret Manager secrets | ✅ Yes | `managed-by=evalforge` |
+| Service Account | ❌ No | Uses description instead |
+| Firestore database | ❌ No | N/A |
+
+**Purpose**: Enable filtering automation-created resources from manually-created ones.
+
+```bash
+# Example: List all evalforge-managed resources
+gcloud run services list --filter="labels.managed-by=evalforge"
+gcloud secrets list --filter="labels.managed-by=evalforge"
+gcloud scheduler jobs list --location=${GCP_REGION} --filter="labels.managed-by=evalforge"
+```
 
 ## Testing Strategy
 
@@ -332,3 +353,4 @@ gcloud scheduler jobs run evalforge-ingestion-trigger --location=us-central1
 | SC-005: Zero cloud expertise needed | One-command deploy |
 | SC-007: Structured logs | All scripts emit timestamped status |
 | SC-008: Idempotent | T1.6, T2.6 verify idempotency |
+| FR-021: Resource labels | T015, T017, T028, T031 apply `managed-by=evalforge` |

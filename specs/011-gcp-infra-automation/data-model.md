@@ -47,12 +47,47 @@ This feature does not involve traditional application data models (entities, rel
 
 ## GCP Resource Schema
 
+## Resource Labels
+
+All GCP resources that support labels will be tagged with:
+
+```yaml
+labels:
+  managed-by: evalforge
+```
+
+**Purpose**: Enables filtering automation-created resources from manually-created ones.
+
+**Usage Examples**:
+```bash
+# List all evalforge-managed Cloud Run services
+gcloud run services list --filter="labels.managed-by=evalforge"
+
+# List all evalforge-managed secrets
+gcloud secrets list --filter="labels.managed-by=evalforge"
+
+# List all evalforge-managed scheduler jobs
+gcloud scheduler jobs list --location=${GCP_REGION} --filter="labels.managed-by=evalforge"
+```
+
+**Label Support by Resource**:
+| Resource | Supports Labels | Applied |
+|----------|-----------------|---------|
+| Cloud Run | ✅ Yes | `managed-by: evalforge` |
+| Cloud Scheduler | ✅ Yes | `managed-by: evalforge` |
+| Secret Manager | ✅ Yes | `managed-by: evalforge` |
+| Service Account | ❌ No (use description) | N/A |
+| Firestore DB | ❌ No | N/A |
+
+---
+
 ### Service Account
 
 ```yaml
 name: evalforge-ingestion-sa
 project: ${GCP_PROJECT_ID}
 display_name: "EvalForge Ingestion Service Account"
+description: "Managed by evalforge automation"
 email: evalforge-ingestion-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
 ```
 
@@ -74,12 +109,16 @@ secrets:
   - name: datadog-api-key
     replication: automatic
     initial_value: "REPLACE_WITH_ACTUAL_API_KEY"
+    labels:
+      managed-by: evalforge
     access:
       - evalforge-ingestion-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
 
   - name: datadog-app-key
     replication: automatic
     initial_value: "REPLACE_WITH_ACTUAL_APP_KEY"
+    labels:
+      managed-by: evalforge
     access:
       - evalforge-ingestion-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
 ```
@@ -92,6 +131,9 @@ service:
   region: ${GCP_REGION}
   image: gcr.io/${GCP_PROJECT_ID}/evalforge-ingestion:latest
   service_account: evalforge-ingestion-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+
+  labels:
+    managed-by: evalforge
 
   resources:
     limits:
@@ -126,6 +168,9 @@ job:
   location: ${GCP_REGION}
   schedule: ${INGESTION_SCHEDULE}  # Default: */5 * * * *
   timezone: UTC
+
+  labels:
+    managed-by: evalforge
 
   http_target:
     uri: https://${SERVICE_URL}/ingestion/run-once

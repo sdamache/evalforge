@@ -72,9 +72,9 @@
 - [ ] T012 [US1] Implement enable_api() function with idempotent check in scripts/bootstrap_gcp.sh
 - [ ] T013 [US1] Add API enablement calls for firestore, run, secretmanager, cloudscheduler, cloudbuild in scripts/bootstrap_gcp.sh
 - [ ] T014 [US1] Implement create_firestore_database() with existence check in scripts/bootstrap_gcp.sh
-- [ ] T015 [US1] Implement create_service_account() with existence check in scripts/bootstrap_gcp.sh
+- [ ] T015 [US1] Implement create_service_account() with existence check and description "Managed by evalforge automation" in scripts/bootstrap_gcp.sh
 - [ ] T016 [US1] Implement grant_iam_role() for datastore.user and secretmanager.secretAccessor in scripts/bootstrap_gcp.sh
-- [ ] T017 [US1] Implement create_secret() with placeholder value and existence check in scripts/bootstrap_gcp.sh
+- [ ] T017 [US1] Implement create_secret() with placeholder value, label "managed-by=evalforge", and existence check in scripts/bootstrap_gcp.sh
 - [ ] T018 [US1] Add secret creation calls for datadog-api-key and datadog-app-key in scripts/bootstrap_gcp.sh
 - [ ] T019 [US1] Implement grant_secret_access() for service account in scripts/bootstrap_gcp.sh
 - [ ] T020 [US1] Add call to existing bootstrap_firestore.py for collection setup in scripts/bootstrap_gcp.sh
@@ -105,10 +105,10 @@
 - [ ] T025 [US2] Add log_info() and log_error() helper functions (can copy from bootstrap) in scripts/deploy.sh
 - [ ] T026 [US2] Add environment variable validation and defaults in scripts/deploy.sh
 - [ ] T027 [US2] Implement build_image() using gcloud builds submit in scripts/deploy.sh
-- [ ] T028 [US2] Implement deploy_cloud_run() with service account and secrets attachment in scripts/deploy.sh
+- [ ] T028 [US2] Implement deploy_cloud_run() with service account, secrets attachment, and label "managed-by=evalforge" in scripts/deploy.sh
 - [ ] T029 [US2] Add environment variable injection for DATADOG_SITE, FIRESTORE_COLLECTION_PREFIX in scripts/deploy.sh
 - [ ] T030 [US2] Implement get_service_url() to retrieve deployed service URL in scripts/deploy.sh
-- [ ] T031 [US2] Implement create_scheduler_job() with OIDC authentication in scripts/deploy.sh
+- [ ] T031 [US2] Implement create_scheduler_job() with OIDC authentication and label "managed-by=evalforge" in scripts/deploy.sh
 - [ ] T032 [US2] Add idempotent scheduler job handling (delete if exists, then create) in scripts/deploy.sh
 - [ ] T033 [US2] Add final success message with service URL and scheduler info in scripts/deploy.sh
 - [ ] T034 [US2] Make script executable with chmod +x scripts/deploy.sh
@@ -267,3 +267,13 @@ For fastest hackathon delivery:
 - Scripts must be idempotent (safe to run multiple times)
 - Commit after each major function or logical group
 - Stop at any checkpoint to validate independently
+
+## Resource Labels
+
+All GCP resources that support labels will be tagged with `managed-by=evalforge` to enable:
+- Filtering: `gcloud run services list --filter="labels.managed-by=evalforge"`
+- Identification of automation-created vs manually-created resources
+- Future selective cleanup
+
+**Label applied to**: Secrets, Cloud Run, Cloud Scheduler
+**Not supported**: Service Account (uses description instead), Firestore DB

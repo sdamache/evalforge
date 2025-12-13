@@ -129,6 +129,7 @@ Infrastructure provisioning is a critical bottleneck for development velocity. D
 - **FR-015**: System MUST emit structured logs with timestamps and operation status for debugging and observability (per constitution: Observability-First principle)
 - **FR-019**: System MUST prevent secrets from being logged, echoed, or committed to version control
 - **FR-020**: System MUST enforce that container services are not publicly accessible (authenticated access only)
+- **FR-021**: System MUST apply `managed-by=evalforge` label to all GCP resources that support labels (Cloud Run, Cloud Scheduler, Secret Manager secrets) to enable filtering automation-created resources from manually-created ones
 
 ### Key Entities
 
@@ -178,7 +179,7 @@ The following capabilities are explicitly deferred to future iterations:
 - Automated secret rotation policies and lifecycle management
 - Blue/green or canary deployment strategies
 - Infrastructure testing frameworks (terratest, etc.)
-- Cost budgets, quota alerts, and resource tagging
+- Cost budgets and quota alerts
 - Custom VPC networking or firewall rules
 - Monitoring/alerting infrastructure (dashboards, alerts, SLOs)
 - Automated backup/restore procedures for database
