@@ -1,0 +1,59 @@
+# Cloud Build ignore file for EvalForge
+# Excludes files not needed in Cloud Build context
+
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+.venv/
+venv/
+evalforge_venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment files (secrets - NEVER upload)
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+docs/
+
+# Specifications (not needed for build)
+specs/
+.specify/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local scripts not needed for build
+scripts/generate_llm_trace_samples.py
