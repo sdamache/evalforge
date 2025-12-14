@@ -18,7 +18,7 @@ This feature adds a Cloud Scheduler-triggered extraction service that reads unpr
 **Target Platform**: Google Cloud Run (stateless service, invoked by Cloud Scheduler over HTTPS)  
 **Project Type**: Single backend service within existing Python project (`src/extraction`)  
 **Performance Goals**: Per-trace processing completes within 10 seconds (including model call + validation + storage) for ≥95% of traces in the 10-trace evaluation set; batch run processes up to `BATCH_SIZE` (default 50) sequentially to reduce rate-limit risk  
-**Constraints**: Cloud Scheduler triggers every 30 minutes; per-trace time budget of 15 seconds enforced internally (to meet spec's 10-second target for ≥95% of traces; timeout → error recorded, batch continues). Trace payloads >200KB are truncated (keep last 100KB) before model call. Only short redacted evidence snippets may be stored. Idempotent per trace: repeated runs update the same pattern record and do not create duplicates.  
+**Constraints**: Cloud Scheduler triggers every 30 minutes; per-trace time budget of 10 seconds enforced end-to-end (model call + validation + storage); timeout → error recorded, batch continues. Trace payloads >200KB are truncated (keep last 100KB) before model call. Only short redacted evidence snippets may be stored. Idempotent per trace: repeated runs update the same pattern record and do not create duplicates.  
 **Scale/Scope**: Initial run processes up to 50 unprocessed traces per scheduler tick; backlog clearance and parallelism can be tuned later once rate limits and costs are measured.
 
 ## Constitution Check

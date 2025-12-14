@@ -74,7 +74,7 @@ This spike captures the key technical decisions for extracting structured failur
 - **Rationale**:
   - `gemini-2.5-flash` is GA as of Google I/O 2025, optimized for low latency and high throughput.
   - Lower temperature (0.2 vs default 1.0) improves repeatability for structured extraction (supports "consistent patterns").
-  - Token cap of 4096 (vs original 1024) provides sufficient room for detailed pattern extraction including evidence, actions, and rationale; the model supports up to 65,535 output tokens.
+  - Token cap of 4096 provides room for full structured output including evidence, actions, and rationale without truncation; adjust downward if measured latency/cost requires it.
   - Sequential processing reduces accidental request bursts and rate-limit risk.
 - **Model Limits** (for reference):
   - Max input tokens: 1,048,576
@@ -88,15 +88,15 @@ This spike captures the key technical decisions for extracting structured failur
 ### 6) Timeouts, truncation, and retries
 
 - **Decision**:
-  - Enforce a per-trace time budget of **15 seconds** end-to-end (model call + validation + write); timeout is treated as a per-trace error and the batch continues. The spec requires 10 seconds (AC4), but real-world Gemini Flash latencies can reach 5–15 seconds for typical prompts; 15 seconds provides margin while still meeting the "≥95% within 10s" success criterion.
-  - If a trace payload exceeds **200KB**, truncate to the last **100KB** before sending to Gemini. Given the model supports ~1M input tokens (~3–4MB text), this is conservative but controls cost.
+  - Enforce a per-trace time budget of **10 seconds** end-to-end (model call + validation + write); timeout is treated as a per-trace error and the batch continues (matches spec + constitution).
+  - If a trace payload exceeds **200KB**, truncate to the last **100KB** before sending to Gemini. This focuses on the most recent context where failures manifest and controls latency/cost.
   - Retry Gemini API failures up to 3 times with exponential backoff (matches existing `tenacity` pattern in `datadog_client.py`).
 - **Rationale**:
-  - 15-second budget balances the spec's 10-second target against observed Gemini latency variance; most requests complete in 3–8 seconds, so ≥95% will meet the 10s target.
-  - Truncation focuses on recent context (where failures manifest) while staying well under model limits.
+  - Strict 10-second time budgeting is a hard requirement; the fallback is to record a timeout error and continue (rather than overrun the budget).
+  - Truncation focuses on recent context (where failures manifest) while controlling latency and spend.
   - 3 retries with backoff matches project conventions and bounds total wait time.
 - **Alternatives considered**:
-  - Strict 10-second timeout (risks higher timeout rate during Gemini load spikes).
+  - Longer timeout (rejected due to spec + constitution 10-second requirement).
   - No truncation (risk of higher cost and slower responses for verbose traces).
   - Unlimited retries (risk of runaway spend and scheduler overlap).
 
@@ -113,7 +113,7 @@ This spike captures the key technical decisions for extracting structured failur
 
 - ~~Verify the Vertex AI SDK call shape for Gemini JSON-only responses~~ → **RESOLVED**: Use `google-genai` SDK with `response_mime_type: "application/json"` and `response_schema` (see Decision #4).
 - Confirm IAM strategy for "internal ML engineering + on-call only" access to stored patterns (Cloud Run invoker + Firestore IAM).
-- Measure real per-trace latency and adjust `BATCH_SIZE`/timeouts to stay inside Cloud Run request timeout limits.
+- Measure real per-trace latency and adjust `BATCH_SIZE`/truncation to stay within the 10-second time budget.
 - **NEW**: Add `google-genai` to project dependencies (`pyproject.toml` or `requirements.txt`).
 - **NEW**: Define the `response_schema` dict matching the Pydantic `FailurePattern` model for compile-time and runtime validation alignment.
 

@@ -29,7 +29,7 @@ GOOGLE_CLOUD_PROJECT=your-gcp-project      # Used by google-genai for auth
 VERTEX_AI_LOCATION=us-central1
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_TEMPERATURE=0.2
-GEMINI_MAX_OUTPUT_TOKENS=4096              # Sufficient for detailed pattern extraction
+GEMINI_MAX_OUTPUT_TOKENS=4096              # Default cap; tune down if latency/cost requires
 
 # Batch processing
 BATCH_SIZE=50
@@ -81,7 +81,7 @@ Cron: */30 * * * *
 
 ## Operational NFRs (constitution-aligned)
 
-- **Latency**: Per-trace processing targets ≤10 seconds for ≥95% of traces (spec AC4). Internally, a 15-second timeout budget is used to accommodate Gemini latency variance while still meeting the target.
+- **Latency**: Per-trace processing must complete within 10 seconds (spec AC4 + constitution). Traces that exceed the budget are marked timed out and recorded as errors; the batch continues.
 - **Reliability**: Gemini calls retry up to 3 times with exponential backoff; failures never halt the batch.
 - **Observability**: Logs include `run_id`, `source_trace_id`, per-trace outcome, and timing.
 - **Privacy/PII**: Stored `evidence.excerpt` is redacted and limited to short excerpts; no raw sensitive user data is persisted.
