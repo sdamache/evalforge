@@ -5,7 +5,7 @@ description: "Task list for feature implementation"
 
 # Tasks: Failure Pattern Extraction
 
-**Input**: Design documents from `/Users/nikhild/Documents/job_related/projects/Exploratory/evalforge/specs/002-extract-failure-patterns/`  
+**Input**: Design documents from `specs/002-extract-failure-patterns/`  
 **Prerequisites**: `plan.md` (required), `spec.md` (required for user stories), `research.md`, `data-model.md`, `contracts/`
 
 ## Format: `[ID] [P?] [Story] Description`
@@ -20,9 +20,9 @@ description: "Task list for feature implementation"
 
 - [ ] T001 [P] Create extraction package scaffold in `src/extraction/__init__.py`
 - [ ] T002 [P] Add `google-genai` dependency (Gemini access) in `pyproject.toml`
-- [ ] T003 [P] Document env vars (`VERTEX_AI_PROJECT`, `VERTEX_AI_LOCATION`, `GEMINI_MODEL`, `GEMINI_TEMPERATURE`, `GEMINI_MAX_OUTPUT_TOKENS`, `BATCH_SIZE`) in `.env.example`
+- [ ] T003 [P] Document env vars (`GOOGLE_CLOUD_PROJECT`, `VERTEX_AI_LOCATION`, `GEMINI_MODEL`, `GEMINI_TEMPERATURE`, `GEMINI_MAX_OUTPUT_TOKENS`, `BATCH_SIZE`) in `.env.example`
 - [ ] T004 [P] Add Cloud Run Dockerfile for extraction service in `Dockerfile.extraction`
-- [ ] T005 [P] Align `evalforge_failure_patterns` schema (pattern_id, source_trace_id, failure_type, trigger_condition, reproduction_context, severity, confidence, extracted_at, raw_trace_snippet) in `specs/002-extract-failure-patterns/data-model.md`
+- [ ] T005 [P] Align `evalforge_failure_patterns` schema (pattern_id, source_trace_id, title, failure_type, trigger_condition, summary, root_cause_hypothesis, evidence, recommended_actions, reproduction_context, severity, confidence, confidence_rationale, extracted_at) in `specs/002-extract-failure-patterns/data-model.md`
 - [ ] T006 [P] Align OpenAPI `FailurePattern` schema (same required fields/enums as T005) in `specs/002-extract-failure-patterns/contracts/extraction-openapi.yaml`
 
 ---
@@ -33,13 +33,13 @@ description: "Task list for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T007 Create extraction settings loader + defaults (model `gemini-2.5-flash`, temperature 0.2, max output tokens 1024, batch size 50) in `src/extraction/config.py`
+- [ ] T007 Create extraction settings loader + defaults (model `gemini-2.5-flash`, temperature 0.2, max output tokens 4096, batch size 50) in `src/extraction/config.py`
 - [ ] T008 [P] Define Pydantic request/response models in `src/extraction/models.py`
 - [ ] T009 [P] Define `FailurePattern` Pydantic schema model matching storage contract in `src/extraction/models.py`
 - [ ] T010 [P] Implement few-shot prompt template builder in `src/extraction/prompt_templates.py`
-- [ ] T011 [P] Implement trace serialization + truncation helper (>100KB → last 50KB) in `src/extraction/trace_utils.py`
-- [ ] T012 [P] Implement redaction helper for `raw_trace_snippet` in `src/extraction/redaction.py`
-- [ ] T013 [P] Implement Gemini client wrapper using `google-genai` (model `gemini-2.5-flash`, temperature 0.2, max output tokens 1024, JSON-only response parsing) in `src/extraction/gemini_client.py`
+- [ ] T011 [P] Implement trace serialization + truncation helper (>200KB → last 100KB) in `src/extraction/trace_utils.py`
+- [ ] T012 [P] Implement redaction helper for `evidence.excerpt` in `src/extraction/redaction.py`
+- [ ] T013 [P] Implement Gemini client wrapper using `google-genai` (model `gemini-2.5-flash`, temperature 0.2, max output tokens 4096, JSON-only response parsing via `response_mime_type`) in `src/extraction/gemini_client.py`
 - [ ] T014 Implement Firestore repository helpers (read unprocessed traces, write patterns, update processed) in `src/extraction/firestore_repository.py`
 - [ ] T015 Implement extraction FastAPI app skeleton + `/health` in `src/extraction/main.py`
 
