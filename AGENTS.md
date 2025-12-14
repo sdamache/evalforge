@@ -25,6 +25,8 @@ Never commit `.env`, Google credentials, or Datadog keys. Reference secrets via 
 ## Active Technologies
 - Python 3.11 + `datadog-api-client` (Python), Google Cloud client libraries (Firestore, Secret Manager), HTTP client, retry/backoff helper (001-capture-datadog-failures)
 - Firestore collection `evalforge_raw_traces` (with prefixed collection name via `FIRESTORE_COLLECTION_PREFIX`) (001-capture-datadog-failures)
+- Python 3.11 + Google Cloud client libraries (Firestore, Secret Manager), Google Gen AI SDK (`google-genai`) for Gemini access, FastAPI (Cloud Run HTTP surface), `tenacity` (retry/backoff), Pydantic (schema validation) (002-extract-failure-patterns)
+- Firestore collections `evalforge_raw_traces` (input) and `evalforge_failure_patterns` (output), both using `FIRESTORE_COLLECTION_PREFIX` (002-extract-failure-patterns)
 
 ## Recent Changes
 - 001-capture-datadog-failures: Added Python 3.11 + `datadog-api-client` (Python), Google Cloud client libraries (Firestore, Secret Manager), HTTP client, retry/backoff helper
