@@ -84,5 +84,5 @@ Cron: */30 * * * *
 - **Latency**: Per-trace processing targets ≤10 seconds for ≥95% of traces (spec AC4). Internally, a 15-second timeout budget is used to accommodate Gemini latency variance while still meeting the target.
 - **Reliability**: Gemini calls retry up to 3 times with exponential backoff; failures never halt the batch.
 - **Observability**: Logs include `run_id`, `source_trace_id`, per-trace outcome, and timing.
-- **Privacy/PII**: Stored `raw_trace_snippet` is redacted and limited to short excerpts; no raw sensitive user data is persisted.
+- **Privacy/PII**: Stored `evidence.excerpt` is redacted and limited to short excerpts; no raw sensitive user data is persisted.
 - **Structured Output**: Uses `response_mime_type: "application/json"` with `response_schema` to guarantee valid JSON from Gemini.

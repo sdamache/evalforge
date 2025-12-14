@@ -20,7 +20,7 @@ This spike captures the key technical decisions for extracting structured failur
 ### 2) Output schema and validation strategy
 
 - **Decision**: Treat the following fields as the canonical persisted pattern contract (validated before write) and store any failures in a separate error record rather than the patterns collection:
-  - `pattern_id`, `source_trace_id`, `failure_type`, `trigger_condition`, `reproduction_context`, `severity`, `confidence`, `extracted_at`, `raw_trace_snippet`.
+  - `pattern_id`, `source_trace_id`, `title`, `failure_type`, `trigger_condition`, `summary`, `root_cause_hypothesis`, `evidence` (signals + excerpt), `recommended_actions`, `reproduction_context`, `severity`, `confidence`, `confidence_rationale`, `extracted_at`.
 - **Rationale**:
   - Keeps `evalforge_failure_patterns` clean: 100% schema-valid documents (AC2).
   - Supports downstream automation (evals/guardrails/runbooks) using stable, structured fields.
@@ -30,7 +30,7 @@ This spike captures the key technical decisions for extracting structured failur
 
 ### 3) Evidence storage and PII safety
 
-- **Decision**: Store evidence as (a) structured signals and (b) short redacted text excerpts (prompts/outputs/errors) when helpful; never store full prompt/output transcripts. Evidence is written as `raw_trace_snippet` and must be redacted/truncated.
+- **Decision**: Store evidence as (a) structured signals and (b) short redacted text excerpts (prompts/outputs/errors) when helpful; never store full prompt/output transcripts. Evidence is stored in the `evidence` object with `signals` (required) and `excerpt` (optional); excerpts must be redacted/truncated.
 - **Rationale**:
   - Balances actionability with privacy risk (supports investigations without exposing raw user data).
   - Aligns with constitution constraints requiring PII stripping/hashing before persistence.
