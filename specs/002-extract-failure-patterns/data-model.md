@@ -85,5 +85,6 @@ Stores per-trace failures (e.g., invalid JSON, retries exhausted) without pollut
 - **source_trace_id** (string, required)
 - **error_type** (string enum, required): `invalid_json|schema_validation|vertex_error|timeout|oversize|unknown`
 - **error_message** (string, required)
-- **raw_model_response** (string, optional): Truncated/redacted.
+- **model_response_sha256** (string, optional): Hash of the full model response for correlation/debugging without storing raw content.
+- **model_response_excerpt** (string, optional): Short redacted excerpt (prompts/outputs/errors); never full transcripts.
 - **recorded_at** (datetime, required)

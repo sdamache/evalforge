@@ -27,7 +27,7 @@ An ML engineer wants production failure traces analyzed in batch so they receive
 
 **Acceptance Scenarios**:
 
-1. **Given** 10 well-formed sample failure traces with expected labels, **When** a batch extraction run is executed, **Then** the system produces a structured pattern record per trace and achieves ≥80% correctness, where correctness means the predicted category and primary contributing factor both match the expected labels.
+1. **Given** 10 well-formed sample failure traces with expected labels, **When** a batch extraction run is executed, **Then** the system produces a structured pattern record per trace and achieves ≥80% correctness, where correctness means the predicted category and primary contributing factor (trigger condition label) both match the expected labels.
 2. **Given** a trace containing clear failure signals, **When** extraction runs, **Then** the output includes a concise pattern title, category, root-cause hypothesis, supporting evidence, recommended prevention/mitigation actions, and a confidence score.
 
 ---
@@ -80,7 +80,7 @@ An operator or ML engineer expects batch extraction to continue even if some tra
 
 - **FR-001**: System MUST accept a batch of failure traces and attempt pattern extraction for each trace independently; the system MUST support batches of at least 10 traces per run.
 - **FR-002**: For each successfully processed trace, System MUST produce exactly one extracted pattern record linked to that trace reference.
-- **FR-003**: Each extracted pattern record MUST include: trace reference, pattern title, standardized category (from a controlled vocabulary defined by the schema), primary contributing factor (single short label), concise summary, root-cause hypothesis, supporting evidence (at least one trace-derived signal and optionally short redacted text excerpts), recommended prevention/mitigation actions (at least one), confidence score, and extraction timestamp.
+- **FR-003**: Each extracted pattern record MUST include: trace reference, pattern title, standardized category (from a controlled vocabulary defined by the schema), trigger condition / primary contributing factor (single short label), concise summary, root-cause hypothesis, supporting evidence (at least one trace-derived signal and optionally short redacted text excerpts), recommended prevention/mitigation actions (at least one), confidence score, and extraction timestamp.
 - **FR-004**: System MUST validate each extracted pattern record against the agreed JSON schema before storage; any record that fails validation MUST NOT be stored.
 - **FR-005**: For validation failures or processing errors, System MUST record an error event that includes the trace reference and a human-readable reason.
 - **FR-006**: System MUST continue processing remaining traces when any individual trace fails (malformed input, extraction error, or schema validation failure).

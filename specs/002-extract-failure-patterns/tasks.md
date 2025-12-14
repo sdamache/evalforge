@@ -56,7 +56,7 @@ description: "Task list for feature implementation"
 ### Tests for User Story 1 ⚠️
 
 - [ ] T016 [P] [US1] Add labeled sample trace fixtures in `tests/data/extraction/sample_failure_traces.json`
-- [ ] T017 [P] [US1] Add integration-style test for run-once happy path (stub Gemini + in-memory Firestore) in `tests/integration/test_extraction_service_api.py`
+- [ ] T017 [P] [US1] Add unit-style test for run-once happy path (stub Gemini + fake Firestore) in `tests/unit/test_extraction_run_once.py`
 
 ### Implementation for User Story 1
 
@@ -65,7 +65,7 @@ description: "Task list for feature implementation"
 - [ ] T020 [US1] Implement `POST /extraction/run-once` orchestration in `src/extraction/main.py`
 - [ ] T021 [US1] Mark source trace `processed=true` only after successful pattern write in `src/extraction/firestore_repository.py`
 - [ ] T022 [US1] Persist per-run summary record in `src/extraction/firestore_repository.py`
-- [ ] T023 [US1] Add structured per-trace and per-run logs (run_id, source_trace_id, outcome, timings) in `src/extraction/main.py`
+- [ ] T023 [US1] Add structured per-trace and per-run logs (run_id, source_trace_id, outcome, timings, model config, prompt hash) in `src/extraction/main.py`
 - [ ] T024 [US1] Add AC1 evaluation script reading `tests/data/extraction/sample_failure_traces.json` and scoring (failure_type + trigger_condition) in `scripts/evaluate_failure_pattern_extraction.py`
 
 **Checkpoint**: US1 complete — scheduled/manual runs produce stored patterns and mark inputs processed
@@ -103,13 +103,13 @@ description: "Task list for feature implementation"
 ### Tests for User Story 3 ⚠️
 
 - [ ] T031 [P] [US3] Add unit tests for truncation and redaction behavior in `tests/unit/test_extraction_truncation_and_redaction.py`
-- [ ] T032 [P] [US3] Add integration-style test for mixed valid + malformed traces continuing the batch in `tests/integration/test_extraction_service_api.py`
+- [ ] T032 [P] [US3] Add unit-style test for mixed valid + malformed traces continuing the batch in `tests/unit/test_extraction_mixed_batch.py`
 
 ### Implementation for User Story 3
 
 - [ ] T033 [US3] Enforce per-trace time budget (<10s) and treat timeouts as per-trace errors in `src/extraction/main.py`
 - [ ] T034 [US3] Retry Gemini API failures 3x with exponential backoff in `src/extraction/gemini_client.py`
-- [ ] T035 [US3] Handle invalid JSON: log error, store truncated raw response in error record, and continue in `src/extraction/main.py`
+- [ ] T035 [US3] Handle invalid JSON: log error, store `model_response_sha256` + short redacted `model_response_excerpt` in error record, and continue in `src/extraction/main.py`
 - [ ] T036 [US3] Handle malformed/incomplete traces (missing id/payload) by recording an error and continuing in `src/extraction/main.py`
 - [ ] T037 [US3] Persist per-trace error records (invalid_json, schema_validation, vertex_error, timeout) in `src/extraction/firestore_repository.py`
 - [ ] T038 [US3] Expand run summary fields (success/validation/error/timeout counts + trace references) in `src/extraction/models.py`
@@ -125,6 +125,11 @@ description: "Task list for feature implementation"
 - [ ] T039 [P] Add extraction service run instructions to `README.md`
 - [ ] T040 [P] Add a short validation section (local run + curl + expected Firestore writes) to `specs/002-extract-failure-patterns/quickstart.md`
 - [ ] T041 [P] Add a developer helper script for local run-once extraction in `scripts/run_extraction_once.sh`
+- [ ] T042 [P] Add Cloud Scheduler + Cloud Run invoker setup script for scheduled runs in `scripts/deploy_extraction_scheduler.sh`
+- [ ] T043 [P] Add live Gemini integration test (real endpoint) with `pytest` marker for enforcement in `tests/integration/test_extraction_live_gemini.py`
+- [ ] T044 [P] Add CI workflow to run live Gemini integration tests in `.github/workflows/live_gemini_integration_tests.yml`
+- [ ] T045 [P] Add confidence calibration spot-check instructions (20 samples) to `specs/002-extract-failure-patterns/quickstart.md`
+- [ ] T046 [P] Add PII audit checklist (20 samples, 0 raw sensitive user data) to `specs/002-extract-failure-patterns/quickstart.md`
 
 ---
 
@@ -151,6 +156,7 @@ description: "Task list for feature implementation"
 - US1: T016, T017, T018, T019, and T024 can run in parallel once Phase 2 completes
 - US2: T025 and T026 can run in parallel; T030 can run in parallel with T027–T029
 - US3: T031 and T032 can run in parallel; T033–T037 can be split between service and repository work
+- Phase 6: T039–T046 can run in parallel (docs/scripts/tests)
 
 ---
 
