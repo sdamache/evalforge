@@ -97,6 +97,7 @@ components:
             signals:
               type: array
               description: At least one trace-derived signal (e.g., error codes, latency spikes)
+              minItems: 1
               items:
                 type: string
             excerpt:
@@ -165,31 +166,74 @@ components:
 
     ExtractionRunSummary:
       type: object
+      description: Per-run summary matching FR-007 requirements for audit/debugging
       properties:
         runId:
           type: string
+          description: Unique identifier for this extraction run
         startedAt:
           type: string
           format: date-time
+          description: Run start timestamp (UTC)
         finishedAt:
           type: string
           format: date-time
+          description: Run completion timestamp (UTC)
         triggeredBy:
           type: string
+          description: How the run was initiated
           enum:
             - scheduled
             - manual
+        batchSize:
+          type: integer
+          description: Maximum traces configured for this run
         pickedUpCount:
           type: integer
+          description: Total traces fetched for attempted processing (FR-007)
         storedCount:
           type: integer
+          description: Patterns successfully stored (FR-007)
         validationFailedCount:
           type: integer
+          description: Patterns that failed schema validation (FR-007)
         errorCount:
           type: integer
+          description: Processing errors excluding timeouts (FR-007)
         timedOutCount:
           type: integer
+          description: Traces that exceeded time budget (FR-007)
+        traceOutcomes:
+          type: array
+          description: Per-trace summaries with references (FR-007)
+          items:
+            type: object
+            properties:
+              sourceTraceId:
+                type: string
+              status:
+                type: string
+                enum:
+                  - stored
+                  - skipped
+                  - validation_failed
+                  - error
+                  - timed_out
+              patternId:
+                type: string
+              errorReason:
+                type: string
+            required:
+              - sourceTraceId
+              - status
       required:
         - runId
         - startedAt
+        - finishedAt
         - triggeredBy
+        - batchSize
+        - pickedUpCount
+        - storedCount
+        - validationFailedCount
+        - errorCount
+        - timedOutCount
