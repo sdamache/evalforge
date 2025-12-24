@@ -1,0 +1,205 @@
+{
+  "_comment": "TERMINOLOGY: In Datadog LLM Observability, a 'trace' is a collection of 'spans'. Each entry below represents a SINGLE LLM SPAN (one LLM call), not a complete trace. The field 'trace_id' here acts as a document ID for our pipeline (matching raw_traces collection schema), but these are synthetic single-span samples. For real multi-span traces from production, integrate with Azure App Service.",
+  "description": "Labeled sample failure spans for extraction evaluation (AC1: >=8/10 correct failure_type + trigger_condition)",
+  "spans": [
+    {
+      "trace_id": "trace_hallucination_001",
+      "failure_type": "llm_error",
+      "severity": "high",
+      "service_name": "chat-assistant",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": "What year was the Eiffel Tower built?",
+        "response": "The Eiffel Tower was built in 1920 for the World's Fair in Paris.",
+        "actual_answer": "1889",
+        "error": null,
+        "latency_ms": 380,
+        "tokens_used": 45
+      },
+      "expected": {
+        "failure_type": "hallucination",
+        "trigger_condition_keywords": ["factual", "date", "incorrect", "wrong year"]
+      }
+    },
+    {
+      "trace_id": "trace_hallucination_002",
+      "failure_type": "quality_degradation",
+      "severity": "high",
+      "service_name": "research-assistant",
+      "processed": false,
+      "trace_payload": {
+        "model": "claude-3-opus",
+        "prompt": "Who wrote the novel '1984'?",
+        "response": "The novel '1984' was written by Aldous Huxley, published in 1949.",
+        "actual_answer": "George Orwell",
+        "error": null,
+        "latency_ms": 420
+      },
+      "expected": {
+        "failure_type": "hallucination",
+        "trigger_condition_keywords": ["author", "attribution", "incorrect", "fabricated"]
+      }
+    },
+    {
+      "trace_id": "trace_wrong_tool_001",
+      "failure_type": "tool_error",
+      "severity": "medium",
+      "service_name": "task-agent",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": "What's the weather like in San Francisco today?",
+        "tool_calls": [
+          {"tool": "calculator", "input": "weather San Francisco", "result": "Error: invalid expression"}
+        ],
+        "available_tools": ["calculator", "weather_api", "web_search"],
+        "error": "Calculator cannot process text input",
+        "latency_ms": 85
+      },
+      "expected": {
+        "failure_type": "wrong_tool",
+        "trigger_condition_keywords": ["calculator", "weather", "wrong tool", "tool selection"]
+      }
+    },
+    {
+      "trace_id": "trace_wrong_tool_002",
+      "failure_type": "tool_error",
+      "severity": "high",
+      "service_name": "code-assistant",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": "Read the file /etc/passwd and summarize it",
+        "tool_calls": [
+          {"tool": "web_search", "input": "/etc/passwd contents", "result": "No relevant results"}
+        ],
+        "available_tools": ["file_read", "web_search", "code_execute"],
+        "error": "Task failed - wrong tool selected",
+        "latency_ms": 1200
+      },
+      "expected": {
+        "failure_type": "wrong_tool",
+        "trigger_condition_keywords": ["file", "web_search", "wrong tool", "file_read"]
+      }
+    },
+    {
+      "trace_id": "trace_infrastructure_001",
+      "failure_type": "infrastructure_error",
+      "severity": "critical",
+      "service_name": "api-gateway",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": "Generate a summary of the quarterly report...",
+        "error": "429 Too Many Requests: Rate limit exceeded",
+        "latency_ms": 12,
+        "retry_count": 3,
+        "headers": {
+          "x-ratelimit-remaining": "0",
+          "retry-after": "60"
+        }
+      },
+      "expected": {
+        "failure_type": "infrastructure_error",
+        "trigger_condition_keywords": ["rate limit", "429", "quota", "exceeded"]
+      }
+    },
+    {
+      "trace_id": "trace_infrastructure_002",
+      "failure_type": "infrastructure_error",
+      "severity": "critical",
+      "service_name": "chat-service",
+      "processed": false,
+      "trace_payload": {
+        "model": "claude-3-opus",
+        "prompt": "Analyze this document...",
+        "error": "504 Gateway Timeout",
+        "latency_ms": 30000,
+        "timeout_configured_ms": 30000
+      },
+      "expected": {
+        "failure_type": "infrastructure_error",
+        "trigger_condition_keywords": ["timeout", "504", "gateway", "latency"]
+      }
+    },
+    {
+      "trace_id": "trace_runaway_loop_001",
+      "failure_type": "llm_error",
+      "severity": "high",
+      "service_name": "planning-agent",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": "Create a plan to organize my files",
+        "iterations": 50,
+        "max_iterations": 50,
+        "response_pattern": "Let me think about this... I need to consider... Let me think about this...",
+        "error": "Max iterations exceeded",
+        "tokens_used": 45000
+      },
+      "expected": {
+        "failure_type": "runaway_loop",
+        "trigger_condition_keywords": ["loop", "iterations", "repetitive", "stuck"]
+      }
+    },
+    {
+      "trace_id": "trace_client_error_001",
+      "failure_type": "client_error",
+      "severity": "low",
+      "service_name": "api-endpoint",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": null,
+        "error": "400 Bad Request: 'prompt' field is required",
+        "request_body": {"messages": []},
+        "latency_ms": 5
+      },
+      "expected": {
+        "failure_type": "client_error",
+        "trigger_condition_keywords": ["missing", "required", "invalid", "400"]
+      }
+    },
+    {
+      "trace_id": "trace_toxicity_001",
+      "failure_type": "guardrail_failure",
+      "severity": "critical",
+      "service_name": "chat-assistant",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": "[redacted prompt attempting jailbreak]",
+        "response": "[redacted - contained harmful content]",
+        "guardrail_triggered": true,
+        "guardrail_type": "content_filter",
+        "toxicity_score": 0.92,
+        "categories_flagged": ["harassment", "hate_speech"]
+      },
+      "expected": {
+        "failure_type": "toxicity",
+        "trigger_condition_keywords": ["harmful", "content", "guardrail", "jailbreak"]
+      }
+    },
+    {
+      "trace_id": "trace_stale_data_001",
+      "failure_type": "quality_degradation",
+      "severity": "medium",
+      "service_name": "knowledge-assistant",
+      "processed": false,
+      "trace_payload": {
+        "model": "gpt-4",
+        "prompt": "What is the current price of Bitcoin?",
+        "response": "As of my last update, Bitcoin is trading at approximately $35,000.",
+        "actual_price_at_time": "$67,000",
+        "knowledge_cutoff": "2023-04-01",
+        "request_date": "2024-12-01",
+        "error": null
+      },
+      "expected": {
+        "failure_type": "stale_data",
+        "trigger_condition_keywords": ["outdated", "knowledge cutoff", "current", "real-time"]
+      }
+    }
+  ]
+}
