@@ -81,7 +81,23 @@ tests/
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+*No violations. All constitution gates satisfied.*
+
+## Deferred Decisions
+
+> **Track architectural shortcuts made to move fast. Revisit when trigger conditions are met.**
+
+| ID | Decision | Why Deferred | Revisit Trigger | Status |
+|----|----------|--------------|-----------------|--------|
+| DD-001 | `GeminiClient` stays in `src/extraction/gemini_client.py` | Only extraction uses Gemini. Premature to abstract without knowing generator needs. | When generator spec (003+) starts and needs Gemini | pending |
+| DD-002 | `trace_utils.py` stays in `src/extraction/` | Truncation logic is extraction-specific (Gemini context limits). Other services may need different truncation. | When another service needs trace truncation | pending |
+| DD-003 | `FailureType` and `Severity` enums in `src/extraction/models.py` | Could be shared if ingestion/generators need same enums. Currently only extraction uses them. | When ingestion or generators need same enums | pending |
+
+### Resolved Deferred Decisions
+
+| ID | Original Decision | Resolution | Resolved In |
+|----|------------------|------------|-------------|
+| DD-000a | Config helpers duplicated in `extraction/config.py` | Consolidated to `src/common/config.py`, deleted `extraction/config.py` | This spec |
+| DD-000b | PII patterns duplicated in `extraction/redaction.py` | Created `src/common/pii.py`, extraction uses it directly | This spec |
+| DD-000c | Firestore client pattern inconsistent | Created `src/common/firestore.py` with shared helpers | This spec |
+| DD-000d | `extraction/redaction.py` was thin wrapper | Deleted, `main.py` imports from `common/pii.py` directly | This spec |

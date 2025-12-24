@@ -102,3 +102,29 @@ directories captured above]
 |-----------|------------|-------------------------------------|
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+
+## Deferred Decisions
+
+> **Track architectural shortcuts made to move fast. Revisit when trigger conditions are met.**
+
+<!--
+  Use this section to document decisions where you:
+  - Chose a simpler/local implementation over a shared/reusable one
+  - Skipped consolidation because there's only one consumer
+  - Made assumptions that should be validated later
+
+  When a new spec triggers a deferred decision, either:
+  1. Address it as part of the new spec
+  2. Create a dedicated consolidation spec
+-->
+
+| ID | Decision | Why Deferred | Revisit Trigger | Status |
+|----|----------|--------------|-----------------|--------|
+| [DD-001] | [e.g., GeminiClient in service-specific module] | [Only one consumer currently] | [When 2nd service needs Gemini] | pending |
+| [DD-002] | [e.g., Enums defined locally] | [No shared consumer yet] | [When another service needs same enums] | pending |
+
+### Resolved Deferred Decisions
+
+| ID | Original Decision | Resolution | Resolved In |
+|----|------------------|------------|-------------|
+| [DD-000] | [e.g., Config helpers duplicated] | [Consolidated to src/common/] | [This spec / PR #123] |
