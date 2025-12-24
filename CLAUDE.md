@@ -86,3 +86,39 @@ Classifies spans by priority: guardrail_failure > prompt_injection > toxicity > 
 Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 - Deduplication: re-observed traces increment `recurrence_count` and append to `status_history`
 - Pagination uses `start_after(DocumentSnapshot)` pattern, returning document ID as cursor
+
+## Shared Utilities (src/common/)
+
+**CRITICAL**: Before implementing ANY new feature, check these shared modules first:
+
+| Module | What It Provides |
+|--------|-----------------|
+| `config.py` | `ConfigError`, env helpers (`_get_env`, `_int_env`, `_float_env`), `FirestoreConfig`, `GeminiConfig`, loaders |
+| `firestore.py` | `get_firestore_client()`, `compute_backlog_size()`, collection name helpers |
+| `pii.py` | `PII_PATTERNS`, `redact_pii_text()`, `strip_pii_fields()`, `filter_pii_tags()`, `hash_user_id()` |
+| `logging.py` | `get_logger()`, `log_decision()`, `log_error()`, `log_audit()` |
+
+**Always import from `src/common/` instead of duplicating helpers.**
+
+## Implementation Guidelines for New Features
+
+When implementing tasks from `specs/*/tasks.md`:
+
+1. **BEFORE writing any code**, explore existing patterns:
+   ```bash
+   ls -la src/common/  # See all shared utilities
+   grep -r "similar_function" src/  # Find existing implementations
+   ```
+
+2. **Ask these questions**:
+   - Does `src/common/config.py` have the config helpers I need?
+   - Are there shared enums/dataclasses to reuse?
+   - How do existing services (`src/ingestion/`, `src/api/`) implement similar patterns?
+   - What Firestore patterns are already established?
+
+3. **Prefer composition over duplication**:
+   - Import and extend shared configs
+   - Add to `src/common/` if new utility will be used by multiple services
+   - Follow existing patterns for `/health` endpoints, `/run-once` orchestration
+
+See `specs/CLAUDE.md` for detailed implementation guidelines when working on spec-kit features.
