@@ -8,7 +8,7 @@ set -e
 # Configuration variables from environment
 PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-"konveyn2ai"}
 REGION=${GOOGLE_CLOUD_LOCATION:-"us-central1"}
-REPOSITORY_NAME="evalforge-repo"
+REPOSITORY_NAME="evalforge"
 SERVICE_NAME="evalforge-extraction"
 SERVICE_ACCOUNT_EMAIL="evalforge-extraction-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 
