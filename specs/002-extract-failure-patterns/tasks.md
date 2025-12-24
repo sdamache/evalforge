@@ -78,10 +78,10 @@ description: "Task list for feature implementation"
 
 **Independent Test**: Run extraction on a small batch and confirm (1) schema-valid patterns are stored, (2) invalid outputs are rejected and recorded as validation errors, and (3) stored records match the contract schema exactly.
 
-### Tests for User Story 2 ⚠️
+### Tests for User Story 2 ✅
 
-- [ ] T025 [P] [US2] Add unit tests for `FailurePattern` schema validation (required fields + enums + confidence range) in `tests/unit/test_failure_pattern_schema.py`
-- [ ] T026 [P] [US2] Add contract test asserting stored pattern payload matches OpenAPI schema in `tests/contract/test_failure_pattern_payload_shape.py`
+- [X] T025 [P] [US2] Add unit tests for `FailurePattern` schema validation (required fields + enums + confidence range) in `tests/unit/test_failure_pattern_schema.py`
+- [X] T026 [P] [US2] Add contract test asserting stored pattern payload matches OpenAPI schema in `tests/contract/test_failure_pattern_payload_shape.py`
 
 ### Implementation for User Story 2
 
@@ -100,10 +100,10 @@ description: "Task list for feature implementation"
 
 **Independent Test**: Submit a batch with valid + malformed traces and confirm the run completes, valid traces produce stored patterns, and malformed traces are logged and recorded without halting the batch.
 
-### Tests for User Story 3 ⚠️
+### Tests for User Story 3 ✅
 
-- [ ] T031 [P] [US3] Add unit tests for truncation and redaction behavior in `tests/unit/test_extraction_truncation_and_redaction.py`
-- [ ] T032 [P] [US3] Add unit-style test for mixed valid + malformed traces continuing the batch in `tests/unit/test_extraction_mixed_batch.py`
+- [X] T031 [P] [US3] Add unit tests for truncation and redaction behavior in `tests/unit/test_extraction_truncation_and_redaction.py`
+- [X] T032 [P] [US3] Add unit-style test for mixed valid + malformed traces continuing the batch in `tests/unit/test_extraction_mixed_batch.py`
 
 ### Implementation for User Story 3
 
