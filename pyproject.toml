@@ -9,9 +9,12 @@ requires-python = ">=3.11"
 dependencies = [
   "requests",
   "fastapi",
+  "uvicorn",
   "google-cloud-firestore",
   "google-cloud-secret-manager",
+  "google-genai==1.0.0",
   "tenacity",
+  "pydantic==2.0.0",
 ]
 
 [project.optional-dependencies]
