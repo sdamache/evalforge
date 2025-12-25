@@ -365,6 +365,7 @@ def get_failure_pattern_response_schema() -> Dict[str, Any]:
                     "signals": {
                         "type": "array",
                         "items": {"type": "string"},
+                        "minItems": 1,
                     },
                     "excerpt": {"type": "string"},
                 },
@@ -373,6 +374,7 @@ def get_failure_pattern_response_schema() -> Dict[str, Any]:
             "recommended_actions": {
                 "type": "array",
                 "items": {"type": "string"},
+                "minItems": 1,
             },
             "reproduction_context": {
                 "type": "object",
