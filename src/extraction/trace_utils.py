@@ -68,6 +68,21 @@ def truncate_trace_payload(
         truncated_size_bytes,
     )
 
+    # Verify final size meets target (if still oversized, truncate more aggressively)
+    final_size = get_payload_size(truncated)
+    max_iterations = 5  # Prevent infinite loops
+    iteration = 0
+
+    while final_size > truncated_size_bytes and iteration < max_iterations:
+        # Still too large - apply more aggressive truncation
+        truncated = _truncate_payload_recursive(
+            truncated,
+            final_size,
+            truncated_size_bytes,
+        )
+        final_size = get_payload_size(truncated)
+        iteration += 1
+
     return truncated, True
 
 
