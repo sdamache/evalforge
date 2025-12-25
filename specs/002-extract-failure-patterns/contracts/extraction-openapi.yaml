@@ -1,0 +1,239 @@
+openapi: 3.0.0
+info:
+  title: Evalforge Failure Pattern Extraction API
+  version: 0.1.0
+
+paths:
+  /health:
+    get:
+      summary: Health check for the extraction service
+      responses:
+        "200":
+          description: Service is healthy
+
+  /extraction/run-once:
+    post:
+      summary: Trigger a single extraction run from Firestore into failure pattern records
+      description: >-
+        Reads unprocessed failure traces from Firestore, extracts a structured failure pattern per trace,
+        validates the output, persists it to the failure patterns collection, and marks source traces as processed.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtractionRunRequest"
+      responses:
+        "202":
+          description: Extraction run accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionRunSummary"
+
+components:
+  schemas:
+    ExtractionRunRequest:
+      type: object
+      properties:
+        batchSize:
+          type: integer
+          description: Maximum number of unprocessed traces to process in this run.
+          minimum: 1
+          maximum: 500
+        dryRun:
+          type: boolean
+          description: If true, performs extraction without writing patterns or updating processed flags.
+        traceIds:
+          type: array
+          description: Optional explicit list of trace IDs to process (overrides unprocessed query).
+          items:
+            type: string
+        triggeredBy:
+          type: string
+          description: Indicates whether the run was scheduled or manually triggered.
+          enum:
+            - scheduled
+            - manual
+
+    FailurePattern:
+      type: object
+      description: Structured failure pattern extracted from a single trace. Fields align with spec FR-003 and FR-010.
+      properties:
+        pattern_id:
+          type: string
+          description: Stable identifier for the pattern (format pattern_source_trace_id)
+        source_trace_id:
+          type: string
+          description: References the source FailureCapture.trace_id (FR-003 trace reference)
+        title:
+          type: string
+          description: Concise pattern title describing the failure (FR-003 pattern title)
+        failure_type:
+          type: string
+          description: Standardized category from controlled vocabulary (FR-003)
+          enum:
+            - hallucination
+            - toxicity
+            - wrong_tool
+            - runaway_loop
+            - pii_leak
+            - stale_data
+            - infrastructure_error
+            - client_error
+        trigger_condition:
+          type: string
+          description: Short label describing what triggered the failure (FR-003 primary contributing factor)
+        summary:
+          type: string
+          description: 1-2 sentence description of what happened (FR-003 concise summary)
+        root_cause_hypothesis:
+          type: string
+          description: Best explanation for why the failure occurred (FR-003 root-cause hypothesis)
+        evidence:
+          type: object
+          description: Supporting evidence from the trace (FR-003)
+          properties:
+            signals:
+              type: array
+              description: At least one trace-derived signal (e.g., error codes, latency spikes)
+              minItems: 1
+              items:
+                type: string
+            excerpt:
+              type: string
+              description: Short redacted text excerpt (optional and never full transcripts)
+          required:
+            - signals
+        recommended_actions:
+          type: array
+          description: At least one prevention/mitigation action (FR-003)
+          minItems: 1
+          items:
+            type: string
+        reproduction_context:
+          type: object
+          properties:
+            input_pattern:
+              type: string
+              description: Typical input phrasing/shape that reproduces the issue
+            required_state:
+              type: string
+              description: Preconditions needed to reproduce (optional)
+            tools_involved:
+              type: array
+              description: Tool names involved in the failure
+              items:
+                type: string
+          required:
+            - input_pattern
+            - tools_involved
+        severity:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+        confidence:
+          type: number
+          format: float
+          description: Confidence score (FR-003, FR-009)
+          minimum: 0.0
+          maximum: 1.0
+        confidence_rationale:
+          type: string
+          description: Short explanation of key signals that influenced confidence (FR-010)
+        extracted_at:
+          type: string
+          format: date-time
+          description: Extraction timestamp in UTC (FR-003)
+      required:
+        - pattern_id
+        - source_trace_id
+        - title
+        - failure_type
+        - trigger_condition
+        - summary
+        - root_cause_hypothesis
+        - evidence
+        - recommended_actions
+        - reproduction_context
+        - severity
+        - confidence
+        - confidence_rationale
+        - extracted_at
+
+    ExtractionRunSummary:
+      type: object
+      description: Per-run summary matching FR-007 requirements for audit/debugging
+      properties:
+        runId:
+          type: string
+          description: Unique identifier for this extraction run
+        startedAt:
+          type: string
+          format: date-time
+          description: Run start timestamp (UTC)
+        finishedAt:
+          type: string
+          format: date-time
+          description: Run completion timestamp (UTC)
+        triggeredBy:
+          type: string
+          description: How the run was initiated
+          enum:
+            - scheduled
+            - manual
+        batchSize:
+          type: integer
+          description: Maximum traces configured for this run
+        pickedUpCount:
+          type: integer
+          description: Total traces fetched for attempted processing (FR-007)
+        storedCount:
+          type: integer
+          description: Patterns successfully stored (FR-007)
+        validationFailedCount:
+          type: integer
+          description: Patterns that failed schema validation (FR-007)
+        errorCount:
+          type: integer
+          description: Processing errors excluding timeouts (FR-007)
+        timedOutCount:
+          type: integer
+          description: Traces that exceeded time budget (FR-007)
+        traceOutcomes:
+          type: array
+          description: Per-trace summaries with references (FR-007)
+          items:
+            type: object
+            properties:
+              sourceTraceId:
+                type: string
+              status:
+                type: string
+                enum:
+                  - stored
+                  - skipped
+                  - validation_failed
+                  - error
+                  - timed_out
+              patternId:
+                type: string
+              errorReason:
+                type: string
+            required:
+              - sourceTraceId
+              - status
+      required:
+        - runId
+        - startedAt
+        - finishedAt
+        - triggeredBy
+        - batchSize
+        - pickedUpCount
+        - storedCount
+        - validationFailedCount
+        - errorCount
+        - timedOutCount

@@ -1,4 +1,21 @@
-"""Configuration loader for ingestion services."""
+"""Configuration loader for Evalforge services.
+
+Provides shared configuration dataclasses and environment variable helpers
+used across ingestion, extraction, and API services.
+
+All service configurations are centralized here to avoid duplication.
+
+Exports:
+    - ConfigError: Exception for configuration errors
+    - _get_env, _int_env, _float_env, _optional_env: Environment helpers
+    - DatadogConfig, FirestoreConfig, GeminiConfig: Service configurations
+    - Settings: Combined settings for ingestion services
+    - ExtractionSettings: Combined settings for extraction service
+    - load_settings: Load ingestion settings from environment
+    - load_extraction_settings: Load extraction settings from environment
+    - load_firestore_config: Load just Firestore config
+    - load_gemini_config: Load just Gemini config
+"""
 
 from __future__ import annotations
 
@@ -61,15 +78,57 @@ class DatadogConfig:
 
 @dataclass
 class FirestoreConfig:
+    """Firestore connection configuration used across all services."""
+
     collection_prefix: str
     project_id: Optional[str] = None
     database_id: str = "(default)"
 
 
 @dataclass
+class GeminiConfig:
+    """Gemini model configuration for AI-powered extraction and generation.
+
+    Used by extraction service and future generator services.
+    """
+
+    model: str
+    temperature: float
+    max_output_tokens: int
+    location: str
+
+
+# Default values for Gemini configuration
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_TEMPERATURE = 0.2
+DEFAULT_GEMINI_MAX_OUTPUT_TOKENS = 4096
+DEFAULT_VERTEX_AI_LOCATION = "us-central1"
+
+# Default values for extraction service
+DEFAULT_BATCH_SIZE = 50
+DEFAULT_PER_TRACE_TIMEOUT_SEC = 10.0
+
+
+@dataclass
 class Settings:
+    """Combined settings for ingestion service."""
+
     datadog: DatadogConfig
     firestore: FirestoreConfig
+
+
+@dataclass
+class ExtractionSettings:
+    """Combined settings for extraction service.
+
+    Includes Gemini config, Firestore config, and extraction-specific
+    operational settings like batch size and timeout.
+    """
+
+    gemini: GeminiConfig
+    firestore: FirestoreConfig
+    batch_size: int
+    per_trace_timeout_sec: float
 
 
 def load_settings() -> Settings:
@@ -90,3 +149,47 @@ def load_settings() -> Settings:
     )
 
     return Settings(datadog=datadog, firestore=firestore)
+
+
+def load_firestore_config() -> FirestoreConfig:
+    """Load Firestore configuration from environment variables.
+
+    Standalone loader for services that only need Firestore config
+    (e.g., extraction service which doesn't need Datadog config).
+    """
+    return FirestoreConfig(
+        collection_prefix=_get_env("FIRESTORE_COLLECTION_PREFIX", default="evalforge_"),
+        project_id=_optional_env("GOOGLE_CLOUD_PROJECT"),
+        database_id=_get_env("FIRESTORE_DATABASE_ID", default="(default)"),
+    )
+
+
+def load_gemini_config() -> GeminiConfig:
+    """Load Gemini configuration from environment variables.
+
+    Returns:
+        GeminiConfig with model settings for Vertex AI Gemini.
+    """
+    return GeminiConfig(
+        model=_get_env("GEMINI_MODEL", default=DEFAULT_GEMINI_MODEL),
+        temperature=_float_env("GEMINI_TEMPERATURE", default=DEFAULT_GEMINI_TEMPERATURE),
+        max_output_tokens=_int_env("GEMINI_MAX_OUTPUT_TOKENS", default=DEFAULT_GEMINI_MAX_OUTPUT_TOKENS),
+        location=_get_env("VERTEX_AI_LOCATION", default=DEFAULT_VERTEX_AI_LOCATION),
+    )
+
+
+def load_extraction_settings() -> ExtractionSettings:
+    """Load extraction service settings from environment variables.
+
+    Returns:
+        ExtractionSettings with Gemini, Firestore, and batch settings.
+
+    Raises:
+        ConfigError: If required environment variables are missing or invalid.
+    """
+    return ExtractionSettings(
+        gemini=load_gemini_config(),
+        firestore=load_firestore_config(),
+        batch_size=_int_env("BATCH_SIZE", default=DEFAULT_BATCH_SIZE),
+        per_trace_timeout_sec=_float_env("PER_TRACE_TIMEOUT_SEC", default=DEFAULT_PER_TRACE_TIMEOUT_SEC),
+    )
