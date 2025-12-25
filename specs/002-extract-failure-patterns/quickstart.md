@@ -317,3 +317,112 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
 - **Observability**: Logs include `run_id`, `source_trace_id`, per-trace outcome, and timing.
 - **Privacy/PII**: Stored `evidence.excerpt` is redacted and limited to short excerpts; no raw sensitive user data is persisted.
 - **Structured Output**: Uses `response_mime_type: "application/json"` with `response_schema` to guarantee valid JSON from Gemini.
+
+## Quality Assurance
+
+### Confidence Calibration Spot-Check (T045)
+
+Periodically verify that extraction confidence scores align with actual quality. Run this check on 20 random samples monthly.
+
+**Procedure:**
+
+1. **Sample selection** (20 patterns):
+
+```bash
+# Query 20 random patterns from Firestore
+gcloud firestore query --collection-id=evalforge_failure_patterns \
+  --limit=20 \
+  --format=json > /tmp/sample_patterns.json
+```
+
+2. **Manual review checklist** for each pattern:
+
+| Field | Check | Pass Criteria |
+|-------|-------|---------------|
+| `failure_type` | Is classification correct? | Matches human judgment |
+| `trigger_condition` | Captures primary cause? | Specific, actionable |
+| `summary` | Accurate description? | Factually correct |
+| `root_cause_hypothesis` | Plausible? | Reasonable given evidence |
+| `recommended_actions` | Actionable? | Could be implemented |
+| `confidence` | Calibrated? | See ranges below |
+
+3. **Expected confidence ranges**:
+
+| Confidence | Expected Accuracy | Sample Size |
+|------------|-------------------|-------------|
+| 0.9 - 1.0 | ≥ 95% correct | At least 2 samples |
+| 0.7 - 0.9 | ≥ 80% correct | At least 5 samples |
+| 0.5 - 0.7 | ≥ 60% correct | At least 5 samples |
+| < 0.5 | Uncertain/review | Variable |
+
+4. **Record results**:
+
+```bash
+# Create calibration log entry
+echo "Date: $(date -I), Samples: 20, Pass: X/20, Notes: ..." >> calibration_log.md
+```
+
+5. **Action thresholds**:
+   - **< 70% overall accuracy**: Investigate prompt or model issues
+   - **Confidence miscalibrated**: Adjust prompt guidance on confidence scoring
+   - **Systematic errors**: Add to few-shot examples or refine schema
+
+### PII Audit Checklist (T046)
+
+Verify no raw sensitive user data is persisted in extracted patterns. Run monthly on 20 random samples.
+
+**Audit Procedure:**
+
+1. **Sample selection** (20 patterns):
+
+```bash
+# Query 20 patterns with evidence excerpts
+gcloud firestore query --collection-id=evalforge_failure_patterns \
+  --filter="evidence.excerpt != null" \
+  --limit=20 \
+  --format=json > /tmp/audit_patterns.json
+```
+
+2. **PII categories to check**:
+
+| PII Type | Pattern Examples | Expected Replacement |
+|----------|------------------|---------------------|
+| Email | `user@example.com` | `[EMAIL_REDACTED]` |
+| Phone | `555-123-4567` | `[PHONE_REDACTED]` |
+| SSN | `123-45-6789` | `[SSN_REDACTED]` |
+| Credit Card | `4532-1111-2222-3333` | `[CARD_REDACTED]` |
+| API Key | `sk-abc123...` | `[API_KEY_REDACTED]` |
+| JWT Token | `eyJhbGciOiJIUzI...` | `[JWT_REDACTED]` |
+| IP Address | `192.168.1.100` | `[IP_REDACTED]` |
+| Names | First/Last names | Should not appear in excerpts |
+
+3. **Audit checklist** for each pattern:
+
+- [ ] `evidence.excerpt` contains no unredacted email addresses
+- [ ] `evidence.excerpt` contains no phone numbers
+- [ ] `evidence.excerpt` contains no SSN/government IDs
+- [ ] `evidence.excerpt` contains no credit card numbers
+- [ ] `evidence.excerpt` contains no API keys or tokens
+- [ ] `evidence.excerpt` contains no IP addresses
+- [ ] `evidence.signals` list contains no PII
+- [ ] `reproduction_context.input_pattern` is generalized (no specific user data)
+
+4. **Automated grep check**:
+
+```bash
+# Check for potential unredacted PII patterns
+cat /tmp/audit_patterns.json | grep -iE \
+  '([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})|(\b\d{3}[-.]?\d{3}[-.]?\d{4}\b)|(\b\d{3}[-]?\d{2}[-]?\d{4}\b)' \
+  && echo "⚠️ Potential PII found!" || echo "✅ No obvious PII patterns"
+```
+
+5. **Record results**:
+
+```bash
+# Create audit log entry
+echo "Date: $(date -I), Samples: 20, PII Found: 0, Notes: ..." >> pii_audit_log.md
+```
+
+6. **Compliance requirement**:
+   - **Target**: 0 raw sensitive user data in any sample
+   - **If PII found**: Investigate redaction logic, update patterns, re-run extraction
