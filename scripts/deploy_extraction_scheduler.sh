@@ -5,18 +5,19 @@
 
 set -e
 
+# Get script directory for sourcing common helpers
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load environment variables from .env
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/common/load_env.sh"
+
 # Configuration variables from environment
 PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-"konveyn2ai"}
 REGION=${GOOGLE_CLOUD_LOCATION:-"us-central1"}
 REPOSITORY_NAME="evalforge"
 SERVICE_NAME="evalforge-extraction"
 SERVICE_ACCOUNT_EMAIL="evalforge-extraction-sa@${PROJECT_ID}.iam.gserviceaccount.com"
-
-# Load environment variables from .env file if it exists
-if [ -f .env ]; then
-    echo "📄 Loading environment variables from .env file..."
-    export $(grep -v '^#' .env | xargs)
-fi
 
 echo "🚀 Deploying EvalForge Extraction Service to Google Cloud Run"
 echo "Project ID: $PROJECT_ID"

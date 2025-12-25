@@ -49,7 +49,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VENV_PATH="${PROJECT_ROOT}/evalforge_venv"
 
-# Default values
+# Load environment variables from .env
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/common/load_env.sh"
+
+# Default values (can be overridden via .env or command line)
 USE_EMULATOR="${USE_EMULATOR:-false}"
 BATCH_SIZE="${BATCH_SIZE:-5}"
 DRY_RUN="${DRY_RUN:-false}"
@@ -113,14 +117,8 @@ setup_environment() {
   # shellcheck disable=SC1091
   source "$VENV_PATH/bin/activate"
 
-  # Load .env if not using emulator
-  if [[ "$USE_EMULATOR" != "true" ]]; then
-    log_info "Loading environment from .env"
-    set -a
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/.env"
-    set +a
-  else
+  # Configure emulator if requested
+  if [[ "$USE_EMULATOR" == "true" ]]; then
     log_info "Using Firestore emulator at $EMULATOR_HOST"
     export FIRESTORE_EMULATOR_HOST="$EMULATOR_HOST"
     export GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT:-demo-project}"
