@@ -36,6 +36,7 @@ from src.extraction.gemini_client import (
     GeminiClient,
     GeminiClientError,
     GeminiParseError,
+    GeminiTimeoutError,
     create_gemini_client,
 )
 from src.extraction.models import (
@@ -254,7 +255,7 @@ def _process_single_trace(
                     model_response_sha256=hashlib.sha256(
                         response.raw_text.encode()
                     ).hexdigest(),
-                    model_response_excerpt=response.raw_text[:200] if response.raw_text else None,
+                    model_response_excerpt=redact_and_truncate(response.raw_text, max_length=200) if response.raw_text else None,
                     recorded_at=datetime.now(tz=timezone.utc),
                 )
                 repository.save_extraction_error(error_record)
@@ -292,6 +293,36 @@ def _process_single_trace(
             source_trace_id=trace_id,
             status=TraceOutcomeStatus.STORED,
             pattern_id=pattern.pattern_id,
+        )
+
+    except GeminiTimeoutError as e:
+        # Gemini API call exceeded request timeout (from ThreadPoolExecutor)
+        duration_sec = time.perf_counter() - start_time
+        logger.warning(
+            "gemini_timeout",
+            extra={
+                "event": "gemini_timeout",
+                "run_id": run_id,
+                "source_trace_id": trace_id,
+                "duration_sec": round(duration_sec, 3),
+                "timeout_sec": timeout_sec,
+            },
+        )
+
+        if not dry_run:
+            error_record = ExtractionError(
+                run_id=run_id,
+                source_trace_id=trace_id,
+                error_type=ExtractionErrorType.TIMEOUT,
+                error_message=str(e),
+                recorded_at=datetime.now(tz=timezone.utc),
+            )
+            repository.save_extraction_error(error_record)
+
+        return TraceOutcome(
+            source_trace_id=trace_id,
+            status=TraceOutcomeStatus.TIMED_OUT,
+            error_reason=f"Gemini request exceeded timeout",
         )
 
     except TimeoutError as e:
