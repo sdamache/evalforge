@@ -72,7 +72,7 @@ description: "Task list for feature implementation"
 
 ---
 
-## Phase 4: User Story 2 - Schema-validated storage for downstream use (Priority: P2)
+## Phase 4: User Story 2 - Schema-validated storage for downstream use (Priority: P2) ✅ COMPLETE
 
 **Goal**: Ensure only schema-valid extracted patterns are stored and retrievable by authorized internal users.
 
@@ -88,13 +88,13 @@ description: "Task list for feature implementation"
 - [X] T027 [US2] Validate Gemini output against `FailurePattern` model before any Firestore write in `src/extraction/main.py`
 - [X] T028 [US2] Generate stable `pattern_id` and enforce idempotent writes by `source_trace_id` in `src/extraction/firestore_repository.py`
 - [X] T029 [US2] Ensure extraction never writes non-conforming documents to `evalforge_failure_patterns` in `src/extraction/firestore_repository.py`
-- [ ] T030 [US2] Document internal-only access approach (Cloud Run invoker + Firestore IAM) in `specs/002-extract-failure-patterns/quickstart.md`
+- [X] T030 [US2] Document internal-only access approach (Cloud Run invoker + Firestore IAM) in `specs/002-extract-failure-patterns/quickstart.md`
 
 **Checkpoint**: US2 complete — output collection is 100% schema-valid and ready for downstream consumers
 
 ---
 
-## Phase 5: User Story 3 - Resilient processing for malformed traces (Priority: P3)
+## Phase 5: User Story 3 - Resilient processing for malformed traces (Priority: P3) ✅ COMPLETE
 
 **Goal**: Continue processing even with malformed traces, timeouts, invalid JSON, or transient Gemini failures; record errors and produce an accurate run summary.
 
@@ -118,18 +118,20 @@ description: "Task list for feature implementation"
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 6: Polish & Cross-Cutting Concerns ✅ COMPLETE
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T039 [P] Add extraction service run instructions to `README.md`
-- [ ] T040 [P] Add a short validation section (local run + curl + expected Firestore writes) to `specs/002-extract-failure-patterns/quickstart.md`
-- [ ] T041 [P] Add a developer helper script for local run-once extraction in `scripts/run_extraction_once.sh`
-- [ ] T042 [P] Add Cloud Scheduler + Cloud Run invoker setup script for scheduled runs in `scripts/deploy_extraction_scheduler.sh`
-- [ ] T043 [P] Add live Gemini integration test (real endpoint) with `pytest` marker for enforcement in `tests/integration/test_extraction_live_gemini.py`
-- [ ] T044 [P] Add CI workflow to run live Gemini integration tests in `.github/workflows/live_gemini_integration_tests.yml`
-- [ ] T045 [P] Add confidence calibration spot-check instructions (20 samples) to `specs/002-extract-failure-patterns/quickstart.md`
-- [ ] T046 [P] Add PII audit checklist (20 samples, 0 raw sensitive user data) to `specs/002-extract-failure-patterns/quickstart.md`
+- [X] T039 [P] Add extraction service run instructions to `README.md`
+- [X] T040 [P] Add a short validation section (local run + curl + expected Firestore writes) to `specs/002-extract-failure-patterns/quickstart.md`
+- [X] T041 [P] Add a developer helper script for local run-once extraction in `scripts/run_extraction_once.sh`
+- [X] T042 [P] Add Cloud Scheduler + Cloud Run invoker setup script for scheduled runs in `scripts/deploy_extraction_scheduler.sh`
+- [X] T043 [P] Add live Gemini integration test (real endpoint) with `pytest` marker for enforcement in `tests/integration/test_extraction_live_gemini.py`
+- [X] T044 [P] Add CI workflow to run live Gemini integration tests in `.github/workflows/live_gemini_integration_tests.yml`
+- [X] T045 [P] Add confidence calibration spot-check instructions (20 samples) to `specs/002-extract-failure-patterns/quickstart.md`
+- [X] T046 [P] Add PII audit checklist (20 samples, 0 raw sensitive user data) to `specs/002-extract-failure-patterns/quickstart.md`
+
+**Checkpoint**: All phases complete — feature ready for production deployment
 
 ---
 
