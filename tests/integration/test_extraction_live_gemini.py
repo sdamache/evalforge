@@ -20,7 +20,7 @@ Usage:
 import os
 import pytest
 from src.extraction.gemini_client import GeminiClient
-from src.extraction.config import load_settings
+from src.common.config import load_settings
 from src.extraction.models import FailurePattern
 
 
