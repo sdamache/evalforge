@@ -121,9 +121,40 @@ GEMINI_MODEL=gemini-2.5-flash
 docker-compose up
 
 # Or run individual services
+
+# Ingestion service (port 8001) - fetches Datadog traces
 python -m src.ingestion.main
+
+# Extraction service (port 8002) - extracts failure patterns
+python -m src.extraction.main
+
+# API service (port 8000) - approval workflow
 python -m src.api.main
 ```
+
+#### Running Extraction Service
+
+The extraction service processes captured failure traces and extracts structured patterns using Gemini:
+
+```bash
+# 1. Start extraction service
+python -m src.extraction.main
+# Service starts on http://localhost:8002
+
+# 2. Trigger manual extraction run
+curl -X POST "http://localhost:8002/extraction/run-once" \
+  -H "Content-Type: application/json" \
+  -d '{"batchSize":50,"triggeredBy":"manual"}'
+
+# Or use helper script
+./scripts/run_extraction_once.sh
+
+# 3. Check results in Firestore
+# - Input: evalforge_raw_traces (processed=true after extraction)
+# - Output: evalforge_failure_patterns (one per source_trace_id)
+```
+
+For detailed extraction setup, see [Extraction Quickstart](specs/002-extract-failure-patterns/quickstart.md).
 
 ### 🌥️ GCP Cloud Deployment
 
