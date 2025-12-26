@@ -99,6 +99,8 @@ jobs:
     steps:
       - name: Download test results
         uses: actions/download-artifact@v4
+        if: needs.live-gemini-tests.result != 'skipped'
+        continue-on-error: true
         with:
           name: gemini-integration-test-results
           path: test-results
@@ -114,6 +116,9 @@ jobs:
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.live-gemini-tests.result }}" = "success" ]; then
             echo "✅ All Gemini integration tests passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.live-gemini-tests.result }}" = "skipped" ]; then
+            echo "⏭️ Live tests skipped (requires GOOGLE_CLOUD_CREDENTIALS secret)" >> $GITHUB_STEP_SUMMARY
+            echo "- Configure secret in repository settings to enable live testing on PRs" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Gemini integration tests failed - check logs for details" >> $GITHUB_STEP_SUMMARY
             echo "- Review Vertex AI API quotas" >> $GITHUB_STEP_SUMMARY
