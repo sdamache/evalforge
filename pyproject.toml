@@ -21,6 +21,7 @@ dependencies = [
 dev = [
   "httpx",
   "pytest",
+  "pytest-timeout",
   "pyyaml",
   "ddtrace",
   "responses",
