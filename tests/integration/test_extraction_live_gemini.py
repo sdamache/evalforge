@@ -21,6 +21,7 @@ import os
 import pytest
 from src.extraction.gemini_client import GeminiClient
 from src.extraction.models import FailurePattern
+from src.common.config import GeminiConfig
 
 
 # Mark all tests in this module as integration tests requiring live API
@@ -33,13 +34,13 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def gemini_client():
     """Create Gemini client with live credentials."""
-    return GeminiClient(
-        project_id=os.getenv("GOOGLE_CLOUD_PROJECT", "konveyn2ai"),
-        location=os.getenv("VERTEX_AI_LOCATION", "us-central1"),
+    config = GeminiConfig(
         model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
         temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.2")),
         max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "4096")),
+        location=os.getenv("VERTEX_AI_LOCATION", "us-central1"),
     )
+    return GeminiClient(config=config)
 
 
 @pytest.fixture
@@ -70,7 +71,8 @@ def sample_failure_trace():
 def test_gemini_client_initialization(gemini_client):
     """Test that Gemini client can be initialized with live credentials."""
     assert gemini_client is not None
-    assert gemini_client._model is not None
+    assert gemini_client.config is not None
+    assert gemini_client.config.model is not None
 
 
 def test_gemini_extract_failure_pattern(gemini_client, sample_failure_trace):
@@ -224,8 +226,8 @@ def test_gemini_respects_temperature_setting(gemini_client):
     Note: This is a smoke test - we can't directly verify temperature
     is applied, but we verify model is configured correctly.
     """
-    assert gemini_client._temperature is not None
-    assert 0.0 <= gemini_client._temperature <= 1.0
+    assert gemini_client.config.temperature is not None
+    assert 0.0 <= gemini_client.config.temperature <= 1.0
 
 
 def test_gemini_batch_extraction_consistency():
@@ -237,13 +239,13 @@ def test_gemini_batch_extraction_consistency():
     - Confidence scores are similar (within 0.2)
     - Core fields (title, trigger_condition) are consistent
     """
-    client = GeminiClient(
-        project_id=os.getenv("GOOGLE_CLOUD_PROJECT", "konveyn2ai"),
-        location=os.getenv("VERTEX_AI_LOCATION", "us-central1"),
+    config = GeminiConfig(
         model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
         temperature=0.0,  # Low temperature for consistency
         max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "4096")),
+        location=os.getenv("VERTEX_AI_LOCATION", "us-central1"),
     )
+    client = GeminiClient(config=config)
 
     trace = {
         "trace_id": "consistency-test-123",
