@@ -178,7 +178,7 @@ Verify that no raw sensitive user data is persisted in extracted patterns:
 
 4. **Compliance verification**:
    - All patterns MUST pass PII audit before production deployment
-   - If any PII leakage is found, review `pii_sanitizer.py` and update sanitization rules
+   - If any PII leakage is found, review `src/common/pii.py` (extraction redaction) or `src/ingestion/pii_sanitizer.py` (ingestion sanitization) and update rules
    - Re-run extraction on affected traces after fixing sanitization
 
 ## Operational NFRs (constitution-aligned)

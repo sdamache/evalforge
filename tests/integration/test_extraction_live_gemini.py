@@ -151,19 +151,10 @@ def test_gemini_extract_failure_pattern(gemini_client, sample_failure_trace):
     assert 0.0 <= pattern.confidence <= 1.0, \
         f"Confidence {pattern.confidence} out of valid range [0.0, 1.0]"
 
-    # Verify failure type is valid enum
-    valid_failure_types = {
-        "hallucination",
-        "prompt_injection",
-        "toxicity",
-        "guardrail_failure",
-        "quality_degradation",
-        "llm_error",
-        "infrastructure_error",
-        "client_error"
-    }
-    assert pattern.failure_type in valid_failure_types, \
-        f"Failure type '{pattern.failure_type}' not in valid set"
+    # Verify failure type is valid enum (use actual FailureType enum values)
+    valid_failure_types = {ft.value for ft in FailureType}
+    assert pattern.failure_type.value in valid_failure_types, \
+        f"Failure type '{pattern.failure_type}' not in valid set {valid_failure_types}"
 
     # Verify severity is valid enum
     valid_severities = {"critical", "high", "medium", "low"}
