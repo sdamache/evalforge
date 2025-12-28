@@ -20,7 +20,6 @@ Usage:
 import os
 import pytest
 from src.extraction.gemini_client import GeminiClient
-from src.common.config import load_settings
 from src.extraction.models import FailurePattern
 
 
@@ -34,13 +33,12 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def gemini_client():
     """Create Gemini client with live credentials."""
-    settings = load_settings()
     return GeminiClient(
-        project_id=settings.google_cloud_project,
-        location=settings.vertex_ai_location,
-        model=settings.gemini_model,
-        temperature=settings.gemini_temperature,
-        max_output_tokens=settings.gemini_max_output_tokens,
+        project_id=os.getenv("GOOGLE_CLOUD_PROJECT", "konveyn2ai"),
+        location=os.getenv("VERTEX_AI_LOCATION", "us-central1"),
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.2")),
+        max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "4096")),
     )
 
 
@@ -239,13 +237,12 @@ def test_gemini_batch_extraction_consistency():
     - Confidence scores are similar (within 0.2)
     - Core fields (title, trigger_condition) are consistent
     """
-    settings = load_settings()
     client = GeminiClient(
-        project_id=settings.google_cloud_project,
-        location=settings.vertex_ai_location,
-        model=settings.gemini_model,
+        project_id=os.getenv("GOOGLE_CLOUD_PROJECT", "konveyn2ai"),
+        location=os.getenv("VERTEX_AI_LOCATION", "us-central1"),
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
         temperature=0.0,  # Low temperature for consistency
-        max_output_tokens=settings.gemini_max_output_tokens,
+        max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "4096")),
     )
 
     trace = {
