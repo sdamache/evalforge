@@ -309,6 +309,9 @@ class ExtractionRunSummary(BaseModel):
 class ExtractionError(BaseModel):
     """Per-trace extraction error record for diagnostic storage."""
 
+    # Disable protected namespace check for model_response_* fields
+    model_config = {"protected_namespaces": ()}
+
     run_id: str = Field(..., description="Run ID when error occurred.")
     source_trace_id: str = Field(..., description="Trace ID that caused the error.")
     error_type: ExtractionErrorType = Field(..., description="Classification of the error.")
