@@ -38,6 +38,9 @@ from src.deduplication.models import (
     SourceTraceResponse,
     PatternSummaryResponse,
     StatusHistoryResponse,
+    # Status Update Models (US3)
+    StatusUpdateRequest,
+    StatusUpdateResponse,
 )
 
 __all__ = [
@@ -59,4 +62,7 @@ __all__ = [
     "SourceTraceResponse",
     "PatternSummaryResponse",
     "StatusHistoryResponse",
+    # Status Update Models
+    "StatusUpdateRequest",
+    "StatusUpdateResponse",
 ]
