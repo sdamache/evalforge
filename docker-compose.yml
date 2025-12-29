@@ -76,6 +76,7 @@ services:
       - SIMILARITY_THRESHOLD=0.85
       - EMBEDDING_MODEL=text-embedding-004
       - DEDUP_BATCH_SIZE=20
+      - DEDUP_POLL_INTERVAL_SECONDS=300
     volumes:
       # Mount GCP credentials for Vertex AI access
       - ~/.config/gcloud:/root/.config/gcloud:ro
