@@ -406,3 +406,107 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error type/code.")
     message: str = Field(..., description="Human-readable error message.")
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details.")
+
+
+# ============================================================================
+# API Response Models (for US2 lineage and US4 dashboard)
+# ============================================================================
+
+
+class SourceTraceResponse(BaseModel):
+    """API response format for source trace entry (camelCase)."""
+
+    trace_id: str = Field(..., alias="traceId")
+    pattern_id: str = Field(..., alias="patternId")
+    added_at: datetime = Field(..., alias="addedAt")
+    similarity_score: Optional[float] = Field(None, alias="similarityScore")
+
+    model_config = {"populate_by_name": True}
+
+
+class PatternSummaryResponse(BaseModel):
+    """API response format for pattern summary (camelCase)."""
+
+    failure_type: str = Field(..., alias="failureType")
+    trigger_condition: str = Field(..., alias="triggerCondition")
+    title: str
+    summary: str
+
+    model_config = {"populate_by_name": True}
+
+
+class StatusHistoryResponse(BaseModel):
+    """API response format for status history entry (camelCase)."""
+
+    previous_status: Optional[str] = Field(None, alias="previousStatus")
+    new_status: str = Field(..., alias="newStatus")
+    actor: str
+    timestamp: datetime
+    notes: Optional[str] = None
+
+    model_config = {"populate_by_name": True}
+
+
+class SuggestionResponse(BaseModel):
+    """API response format for a suggestion (camelCase, per OpenAPI contract)."""
+
+    suggestion_id: str = Field(..., alias="suggestionId")
+    type: str
+    status: str
+    severity: str
+    source_traces: List[SourceTraceResponse] = Field(..., alias="sourceTraces")
+    pattern: PatternSummaryResponse
+    similarity_group: Optional[str] = Field(None, alias="similarityGroup")
+    version_history: List[StatusHistoryResponse] = Field(..., alias="versionHistory")
+    created_at: datetime = Field(..., alias="createdAt")
+    updated_at: datetime = Field(..., alias="updatedAt")
+
+    model_config = {"populate_by_name": True}
+
+    @classmethod
+    def from_suggestion(cls, suggestion: "Suggestion") -> "SuggestionResponse":
+        """Convert internal Suggestion model to API response format."""
+        return cls(
+            suggestion_id=suggestion.suggestion_id,
+            type=suggestion.type.value,
+            status=suggestion.status.value,
+            severity=suggestion.severity.value,
+            source_traces=[
+                SourceTraceResponse(
+                    trace_id=st.trace_id,
+                    pattern_id=st.pattern_id,
+                    added_at=st.added_at,
+                    similarity_score=st.similarity_score,
+                )
+                for st in suggestion.source_traces
+            ],
+            pattern=PatternSummaryResponse(
+                failure_type=suggestion.pattern.failure_type.value,
+                trigger_condition=suggestion.pattern.trigger_condition,
+                title=suggestion.pattern.title,
+                summary=suggestion.pattern.summary,
+            ),
+            similarity_group=suggestion.similarity_group,
+            version_history=[
+                StatusHistoryResponse(
+                    previous_status=vh.previous_status.value if vh.previous_status else None,
+                    new_status=vh.new_status.value,
+                    actor=vh.actor,
+                    timestamp=vh.timestamp,
+                    notes=vh.notes,
+                )
+                for vh in suggestion.version_history
+            ],
+            created_at=suggestion.created_at,
+            updated_at=suggestion.updated_at,
+        )
+
+
+class SuggestionListResponse(BaseModel):
+    """API response for list of suggestions with pagination."""
+
+    suggestions: List[SuggestionResponse]
+    total: int
+    next_cursor: Optional[str] = Field(None, alias="nextCursor")
+
+    model_config = {"populate_by_name": True}
