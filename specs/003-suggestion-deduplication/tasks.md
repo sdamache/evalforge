@@ -53,20 +53,20 @@
 
 ### Live Integration Test for User Story 1
 
-- [ ] T013 [US1] Create live integration test in tests/integration/test_deduplication_live.py that hits real Vertex AI and Firestore
+- [x] T013 [US1] Create live integration test in tests/integration/test_deduplication_live.py that hits real Vertex AI and Firestore
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implement DeduplicationService class in src/deduplication/deduplication_service.py with process_batch() method
-- [ ] T015 [US1] Implement _generate_embedding_text() helper to combine failure_type + trigger_condition in src/deduplication/deduplication_service.py
-- [ ] T016 [US1] Implement _find_or_create_suggestion() logic in src/deduplication/deduplication_service.py (FR-001, FR-002, FR-003)
-- [ ] T017 [US1] Implement merge_into_suggestion() in SuggestionRepository for adding trace to existing suggestion (FR-012)
-- [ ] T018 [US1] Implement create_suggestion() in SuggestionRepository for new suggestions with pending status
-- [ ] T019 [US1] Add structured logging for merge decisions (pattern_id, suggestion_id, similarity_score, outcome) per FR-013
-- [ ] T020 [US1] Add processing metrics logging (patterns_processed, merge_rate, avg_similarity, duration) per FR-014
-- [ ] T021 [US1] Create FastAPI service in src/deduplication/main.py with /health endpoint
-- [ ] T022 [US1] Add POST /dedup/run-once endpoint in src/deduplication/main.py per OpenAPI contract
-- [ ] T023 [US1] Implement DeduplicationRunSummary response model per contracts/deduplication-openapi.yaml
+- [x] T014 [US1] Implement DeduplicationService class in src/deduplication/deduplication_service.py with process_batch() method
+- [x] T015 [US1] Implement _generate_embedding_text() helper to combine failure_type + trigger_condition in src/deduplication/deduplication_service.py
+- [x] T016 [US1] Implement _find_or_create_suggestion() logic in src/deduplication/deduplication_service.py (FR-001, FR-002, FR-003)
+- [x] T017 [US1] Implement merge_into_suggestion() in SuggestionRepository for adding trace to existing suggestion (FR-012)
+- [x] T018 [US1] Implement create_suggestion() in SuggestionRepository for new suggestions with pending status
+- [x] T019 [US1] Add structured logging for merge decisions (pattern_id, suggestion_id, similarity_score, outcome) per FR-013
+- [x] T020 [US1] Add processing metrics logging (patterns_processed, merge_rate, avg_similarity, duration) per FR-014
+- [x] T021 [US1] Create FastAPI service in src/deduplication/main.py with /health endpoint
+- [x] T022 [US1] Add POST /dedup/run-once endpoint in src/deduplication/main.py per OpenAPI contract
+- [x] T023 [US1] Implement DeduplicationRunSummary response model per contracts/deduplication-openapi.yaml
 
 **Checkpoint**: User Story 1 complete - deduplication of patterns into suggestions works end-to-end
 
