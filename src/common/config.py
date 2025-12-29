@@ -261,3 +261,38 @@ def load_deduplication_settings() -> DeduplicationSettings:
         batch_size=_int_env("DEDUP_BATCH_SIZE", default=DEFAULT_DEDUP_BATCH_SIZE),
         poll_interval_seconds=_int_env("DEDUP_POLL_INTERVAL_SECONDS", default=DEFAULT_DEDUP_POLL_INTERVAL_SECONDS),
     )
+
+
+# =============================================================================
+# Approval Workflow API Configuration
+# =============================================================================
+
+
+@dataclass
+class ApprovalConfig:
+    """Configuration for approval workflow API.
+
+    Used by the approval workflow service for API key authentication
+    and Slack webhook notifications.
+    """
+
+    api_key: Optional[str]
+    slack_webhook_url: Optional[str]
+    firestore: FirestoreConfig
+
+
+def load_approval_config() -> ApprovalConfig:
+    """Load approval workflow configuration from environment variables.
+
+    Returns:
+        ApprovalConfig with API key, webhook URL, and Firestore config.
+
+    Note:
+        api_key and slack_webhook_url are optional to allow running
+        in development mode without full configuration.
+    """
+    return ApprovalConfig(
+        api_key=_optional_env("APPROVAL_API_KEY"),
+        slack_webhook_url=_optional_env("SLACK_WEBHOOK_URL"),
+        firestore=load_firestore_config(),
+    )

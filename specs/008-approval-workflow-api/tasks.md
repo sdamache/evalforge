@@ -9,10 +9,10 @@
 
 **Purpose**: Create the approval workflow package structure and configuration.
 
-- [ ] T001 Create approval workflow package skeleton in `src/api/approval/` (`__init__.py`, `router.py`, `models.py`, `service.py`, `repository.py`, `webhook.py`, `exporters.py`)
-- [ ] T002 Add approval workflow settings to `src/common/config.py` (`APPROVAL_API_KEY`, `SLACK_WEBHOOK_URL`)
-- [ ] T003 [P] Document new env vars in `.env.example` (APPROVAL_API_KEY, SLACK_WEBHOOK_URL)
-- [ ] T004 [P] Create API key authentication middleware in `src/api/auth.py` (using `secrets.compare_digest` per research.md)
+- [x] T001 Create approval workflow package skeleton in `src/api/approval/` (`__init__.py`, `router.py`, `models.py`, `service.py`, `repository.py`, `webhook.py`, `exporters.py`)
+- [x] T002 Add approval workflow settings to `src/common/config.py` (`APPROVAL_API_KEY`, `SLACK_WEBHOOK_URL`)
+- [x] T003 [P] Document new env vars in `.env.example` (APPROVAL_API_KEY, SLACK_WEBHOOK_URL)
+- [x] T004 [P] Create API key authentication middleware in `src/api/auth.py` (using `secrets.compare_digest` per research.md)
 
 ---
 
