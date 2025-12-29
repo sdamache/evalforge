@@ -86,3 +86,10 @@ Classifies spans by priority: guardrail_failure > prompt_injection > toxicity > 
 Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 - Deduplication: re-observed traces increment `recurrence_count` and append to `status_history`
 - Pagination uses `start_after(DocumentSnapshot)` pattern, returning document ID as cursor
+
+## Active Technologies
+- Python 3.11 + FastAPI, google-cloud-firestore, google-cloud-aiplatform, numpy, tenacity, pydantic (003-suggestion-deduplication)
+- Firestore collections `evalforge_failure_patterns` (input), `evalforge_suggestions` (output) (003-suggestion-deduplication)
+
+## Recent Changes
+- 003-suggestion-deduplication: Added Python 3.11 + FastAPI, google-cloud-firestore, google-cloud-aiplatform, numpy, tenacity, pydantic
