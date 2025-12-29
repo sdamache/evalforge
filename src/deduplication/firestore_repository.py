@@ -474,6 +474,106 @@ class SuggestionRepository:
         return embeddings
 
     # =========================================================================
+    # Status Update Operations (T031 - for US3)
+    # =========================================================================
+
+    def update_suggestion_status(
+        self,
+        suggestion_id: str,
+        new_status: SuggestionStatus,
+        actor: str,
+        notes: Optional[str] = None,
+    ) -> Tuple[Suggestion, StatusHistoryEntry]:
+        """Update suggestion status with audit trail (T031 - FR-005).
+
+        Validates status transition and appends to version_history.
+
+        Allowed transitions per FR-011:
+        - pending -> approved
+        - pending -> rejected
+
+        Args:
+            suggestion_id: ID of suggestion to update.
+            new_status: Target status (must be approved or rejected).
+            actor: Who is making the change.
+            notes: Optional reason for the change.
+
+        Returns:
+            Tuple of (updated Suggestion, new StatusHistoryEntry).
+
+        Raises:
+            SuggestionNotFoundError: If suggestion not found.
+            SuggestionRepositoryError: If transition is invalid or update fails.
+        """
+        from src.deduplication.models import ApprovalMetadata
+
+        now = datetime.utcnow()
+
+        # Get existing suggestion
+        suggestion = self.get_suggestion_or_raise(suggestion_id)
+
+        # Validate transition (FR-011: only pending -> approved/rejected)
+        if suggestion.status != SuggestionStatus.PENDING:
+            raise SuggestionRepositoryError(
+                f"Cannot change status from '{suggestion.status.value}'. "
+                f"Only 'pending' suggestions can be updated."
+            )
+
+        if new_status == SuggestionStatus.PENDING:
+            raise SuggestionRepositoryError(
+                "Cannot transition to 'pending'. Only 'approved' or 'rejected' allowed."
+            )
+
+        # Create status history entry
+        history_entry = StatusHistoryEntry(
+            previous_status=suggestion.status,
+            new_status=new_status,
+            actor=actor,
+            timestamp=now,
+            notes=notes,
+        )
+
+        # Create approval metadata
+        approval_metadata = ApprovalMetadata(
+            actor=actor,
+            action=new_status.value,
+            notes=notes,
+            timestamp=now,
+        )
+
+        # Update in Firestore
+        try:
+            from google.cloud.firestore import ArrayUnion
+
+            self.suggestions_ref.document(suggestion_id).update({
+                "status": new_status.value,
+                "version_history": ArrayUnion([history_entry.to_dict()]),
+                "approval_metadata": approval_metadata.to_dict(),
+                "updated_at": now.isoformat(),
+            })
+
+            # Update local suggestion object
+            suggestion.status = new_status
+            suggestion.version_history.append(history_entry)
+            suggestion.approval_metadata = approval_metadata
+            suggestion.updated_at = now
+
+            logger.info(
+                "Updated suggestion status",
+                extra={
+                    "suggestion_id": suggestion_id,
+                    "previous_status": history_entry.previous_status.value,
+                    "new_status": new_status.value,
+                    "actor": actor,
+                },
+            )
+
+            return suggestion, history_entry
+
+        except Exception as e:
+            raise SuggestionRepositoryError(f"Failed to update suggestion status: {e}") from e
+
+    # =========================================================================
     # List Suggestions with Filters (T028, T036 - for US2/US4)
     # =========================================================================
 
