@@ -20,13 +20,19 @@ from fastapi.responses import JSONResponse
 
 from src.deduplication.deduplication_service import DeduplicationService
 from src.deduplication.embedding_client import EmbeddingClient
+from src.deduplication.firestore_repository import SuggestionRepository, SuggestionNotFoundError
 from src.deduplication.models import (
     DeduplicationRunRequest,
     DeduplicationRunSummary,
     ErrorResponse,
     HealthResponse,
+    SuggestionResponse,
+    SuggestionListResponse,
+    SuggestionStatus,
+    SuggestionType,
     TriggeredBy,
 )
+from src.extraction.models import Severity
 
 # Configure logging
 logging.basicConfig(
@@ -48,6 +54,7 @@ app = FastAPI(
 # Lazy-initialized service (to avoid connection issues at import time)
 _service: Optional[DeduplicationService] = None
 _embedding_client: Optional[EmbeddingClient] = None
+_repository: Optional[SuggestionRepository] = None
 
 
 def get_embedding_client() -> EmbeddingClient:
@@ -58,12 +65,21 @@ def get_embedding_client() -> EmbeddingClient:
     return _embedding_client
 
 
+def get_repository() -> SuggestionRepository:
+    """Get or create the suggestion repository singleton."""
+    global _repository
+    if _repository is None:
+        _repository = SuggestionRepository()
+    return _repository
+
+
 def get_service() -> DeduplicationService:
     """Get or create the deduplication service singleton."""
     global _service
     if _service is None:
         _service = DeduplicationService(
             embedding_client=get_embedding_client(),
+            repository=get_repository(),
         )
     return _service
 
@@ -187,6 +203,163 @@ async def run_deduplication(
             detail=ErrorResponse(
                 error="internal_error",
                 message="Deduplication processing failed.",
+                details={"original_error": str(e)},
+            ).model_dump(),
+        )
+
+
+# ============================================================================
+# Suggestion Endpoints (T027, T028 - User Story 2)
+# ============================================================================
+
+
+@app.get(
+    "/suggestions/{suggestion_id}",
+    response_model=SuggestionResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "Suggestion not found"},
+    },
+    summary="Get suggestion by ID",
+    description="Returns full suggestion details including lineage (source traces).",
+)
+async def get_suggestion(suggestion_id: str) -> SuggestionResponse:
+    """Get a suggestion by ID with full lineage information (T027 - US2).
+
+    Args:
+        suggestion_id: The unique suggestion identifier.
+
+    Returns:
+        SuggestionResponse with full details and source traces.
+
+    Raises:
+        HTTPException: 404 if suggestion not found.
+    """
+    try:
+        repository = get_repository()
+        suggestion = repository.get_suggestion(suggestion_id)
+
+        if suggestion is None:
+            raise HTTPException(
+                status_code=404,
+                detail=ErrorResponse(
+                    error="not_found",
+                    message=f"Suggestion not found: {suggestion_id}",
+                ).model_dump(),
+            )
+
+        return SuggestionResponse.from_suggestion(suggestion)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get suggestion {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="internal_error",
+                message="Failed to retrieve suggestion.",
+                details={"original_error": str(e)},
+            ).model_dump(),
+        )
+
+
+@app.get(
+    "/suggestions",
+    response_model=SuggestionListResponse,
+    summary="List suggestions with filters",
+    description="Returns paginated list of suggestions filtered by status, type, or severity.",
+)
+async def list_suggestions(
+    status: Optional[str] = None,
+    type: Optional[str] = None,
+    severity: Optional[str] = None,
+    limit: int = 50,
+    cursor: Optional[str] = None,
+) -> SuggestionListResponse:
+    """List suggestions with optional filters and pagination (T028 - US2).
+
+    Args:
+        status: Filter by status (pending, approved, rejected).
+        type: Filter by suggestion type (eval, guardrail, runbook).
+        severity: Filter by severity (low, medium, high, critical).
+        limit: Maximum results per page (1-100, default 50).
+        cursor: Pagination cursor from previous response.
+
+    Returns:
+        SuggestionListResponse with suggestions and pagination info.
+    """
+    try:
+        repository = get_repository()
+
+        # Parse and validate filters
+        status_filter = None
+        if status:
+            try:
+                status_filter = SuggestionStatus(status)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=ErrorResponse(
+                        error="invalid_parameter",
+                        message=f"Invalid status: {status}. Must be one of: pending, approved, rejected",
+                    ).model_dump(),
+                )
+
+        type_filter = None
+        if type:
+            try:
+                type_filter = SuggestionType(type)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=ErrorResponse(
+                        error="invalid_parameter",
+                        message=f"Invalid type: {type}. Must be one of: eval, guardrail, runbook",
+                    ).model_dump(),
+                )
+
+        severity_filter = None
+        if severity:
+            try:
+                severity_filter = Severity(severity)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=ErrorResponse(
+                        error="invalid_parameter",
+                        message=f"Invalid severity: {severity}. Must be one of: low, medium, high, critical",
+                    ).model_dump(),
+                )
+
+        # Validate limit
+        if limit < 1 or limit > 100:
+            limit = min(max(limit, 1), 100)
+
+        # Query suggestions
+        suggestions, next_cursor, total = repository.list_suggestions(
+            status=status_filter,
+            suggestion_type=type_filter,
+            severity=severity_filter,
+            limit=limit,
+            cursor=cursor,
+        )
+
+        # Convert to response format
+        return SuggestionListResponse(
+            suggestions=[SuggestionResponse.from_suggestion(s) for s in suggestions],
+            total=total,
+            next_cursor=next_cursor,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list suggestions: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="internal_error",
+                message="Failed to list suggestions.",
                 details={"original_error": str(e)},
             ).model_dump(),
         )
