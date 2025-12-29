@@ -302,6 +302,46 @@ class DeduplicationRunRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class StatusUpdateRequest(BaseModel):
+    """Request body for PATCH /suggestions/{suggestionId}/status (T032 - US3).
+
+    Status transitions allowed per FR-011:
+    - pending -> approved
+    - pending -> rejected
+
+    Terminal states (approved, rejected) cannot be changed.
+    """
+
+    status: SuggestionStatus = Field(
+        ...,
+        description="New status: 'approved' or 'rejected'.",
+    )
+    actor: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Who is making the change (email or API key ID).",
+    )
+    notes: Optional[str] = Field(
+        None,
+        max_length=1000,
+        description="Optional notes explaining the approval/rejection.",
+    )
+
+
+class StatusUpdateResponse(BaseModel):
+    """Response for PATCH /suggestions/{suggestionId}/status."""
+
+    suggestion_id: str = Field(..., alias="suggestionId")
+    previous_status: str = Field(..., alias="previousStatus")
+    new_status: str = Field(..., alias="newStatus")
+    actor: str
+    timestamp: datetime
+    notes: Optional[str] = None
+
+    model_config = {"populate_by_name": True}
+
+
 # ============================================================================
 # Response Models
 # ============================================================================
