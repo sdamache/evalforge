@@ -73,6 +73,9 @@ class EmbeddingClient:
     def _get_model(self):
         """Lazy-load the Vertex AI embedding model.
 
+        Initializes the Vertex AI SDK with project and location settings
+        before loading the model for correct regional routing.
+
         Returns:
             TextEmbeddingModel instance.
 
@@ -81,13 +84,21 @@ class EmbeddingClient:
         """
         if self._model is None:
             try:
+                import vertexai
                 from vertexai.language_models import TextEmbeddingModel
+
+                # Initialize Vertex AI with project and location for correct routing
+                vertexai.init(
+                    project=self.config.project,
+                    location=self.config.location,
+                )
 
                 self._model = TextEmbeddingModel.from_pretrained(self.config.model)
                 logger.info(
                     "Initialized embedding model",
                     extra={
                         "model": self.config.model,
+                        "project": self.config.project,
                         "location": self.config.location,
                     },
                 )

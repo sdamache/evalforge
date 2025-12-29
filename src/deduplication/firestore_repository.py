@@ -409,21 +409,31 @@ class SuggestionRepository:
     # Pattern Processing Status (T012)
     # =========================================================================
 
-    def mark_pattern_processed(self, pattern_id: str) -> None:
+    def mark_pattern_processed(self, pattern: FailurePattern) -> None:
         """Mark a pattern as processed after deduplication (FR-016).
 
+        Note: Uses source_trace_id as document ID since extraction service
+        stores patterns using source_trace_id (not pattern_id) as the doc ID.
+
         Args:
-            pattern_id: ID of the pattern to mark.
+            pattern: The FailurePattern to mark as processed.
 
         Raises:
             SuggestionRepositoryError: If update fails.
         """
         try:
-            self.patterns_ref.document(pattern_id).update({
+            # Use source_trace_id as that's the document ID in Firestore
+            self.patterns_ref.document(pattern.source_trace_id).update({
                 "processed": True,
                 "processed_at": datetime.utcnow().isoformat(),
             })
-            logger.debug("Marked pattern as processed", extra={"pattern_id": pattern_id})
+            logger.debug(
+                "Marked pattern as processed",
+                extra={
+                    "pattern_id": pattern.pattern_id,
+                    "source_trace_id": pattern.source_trace_id,
+                },
+            )
         except Exception as e:
             raise SuggestionRepositoryError(f"Failed to mark pattern processed: {e}") from e
 
@@ -595,8 +605,12 @@ class SuggestionRepository:
             cursor: Document ID to start after for pagination.
 
         Returns:
-            Tuple of (suggestions, next_cursor, total_count).
-            next_cursor is None if no more results.
+            Tuple of (suggestions, next_cursor, page_count).
+            - suggestions: List of Suggestion objects for this page
+            - next_cursor: Document ID for next page, or None if no more results
+            - page_count: Number of suggestions returned in this page (NOT total count).
+              Note: Firestore doesn't support efficient COUNT queries, so we return
+              page size. Use next_cursor presence to determine if more results exist.
         """
         # Build query with filters
         query = self.suggestions_ref
@@ -639,11 +653,10 @@ class SuggestionRepository:
             # More results exist
             next_cursor = suggestions[-1].suggestion_id if suggestions else None
 
-        # Count total (note: Firestore doesn't have efficient count, so we estimate)
-        # For accurate count, would need a separate aggregation query
-        total = len(suggestions)
-        if next_cursor:
-            total = limit + 1  # Indicate more exist
+        # Return page count (not total matching records)
+        # Firestore doesn't support efficient COUNT queries
+        # Use next_cursor presence to determine if more results exist
+        page_count = len(suggestions)
 
         logger.info(
             "Listed suggestions",
@@ -658,7 +671,7 @@ class SuggestionRepository:
             },
         )
 
-        return suggestions, next_cursor, total
+        return suggestions, next_cursor, page_count
 
     def count_suggestions(
         self,

@@ -279,7 +279,8 @@ class DeduplicationService:
                             merge_scores.append(score)
 
                     # Mark pattern as processed (FR-016)
-                    self.repository.mark_pattern_processed(pattern.pattern_id)
+                    # Pass full pattern since doc ID is source_trace_id, not pattern_id
+                    self.repository.mark_pattern_processed(pattern)
 
                     pattern_outcomes.append(
                         PatternOutcome(
