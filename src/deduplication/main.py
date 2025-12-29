@@ -20,7 +20,11 @@ from fastapi.responses import JSONResponse
 
 from src.deduplication.deduplication_service import DeduplicationService
 from src.deduplication.embedding_client import EmbeddingClient
-from src.deduplication.firestore_repository import SuggestionRepository, SuggestionNotFoundError
+from src.deduplication.firestore_repository import (
+    SuggestionRepository,
+    SuggestionNotFoundError,
+    SuggestionRepositoryError,
+)
 from src.deduplication.models import (
     DeduplicationRunRequest,
     DeduplicationRunSummary,
@@ -30,6 +34,8 @@ from src.deduplication.models import (
     SuggestionListResponse,
     SuggestionStatus,
     SuggestionType,
+    StatusUpdateRequest,
+    StatusUpdateResponse,
     TriggeredBy,
 )
 from src.extraction.models import Severity
@@ -360,6 +366,100 @@ async def list_suggestions(
             detail=ErrorResponse(
                 error="internal_error",
                 message="Failed to list suggestions.",
+                details={"original_error": str(e)},
+            ).model_dump(),
+        )
+
+
+# ============================================================================
+# Status Update Endpoint (T032, T033 - User Story 3)
+# ============================================================================
+
+
+@app.patch(
+    "/suggestions/{suggestion_id}/status",
+    response_model=StatusUpdateResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid status transition"},
+        404: {"model": ErrorResponse, "description": "Suggestion not found"},
+    },
+    summary="Update suggestion status",
+    description="Approve or reject a pending suggestion. Records audit trail.",
+)
+async def update_suggestion_status(
+    suggestion_id: str,
+    request: StatusUpdateRequest,
+) -> StatusUpdateResponse:
+    """Update suggestion status with audit trail (T032, T033 - US3).
+
+    Validates that transition is allowed per FR-011:
+    - pending -> approved
+    - pending -> rejected
+
+    Args:
+        suggestion_id: The suggestion to update.
+        request: Status update details (new status, actor, optional notes).
+
+    Returns:
+        StatusUpdateResponse with transition details.
+
+    Raises:
+        HTTPException: 400 if transition invalid, 404 if not found.
+    """
+    try:
+        repository = get_repository()
+
+        # T033: Status transition validation happens in repository
+        suggestion, history_entry = repository.update_suggestion_status(
+            suggestion_id=suggestion_id,
+            new_status=request.status,
+            actor=request.actor,
+            notes=request.notes,
+        )
+
+        return StatusUpdateResponse(
+            suggestion_id=suggestion.suggestion_id,
+            previous_status=history_entry.previous_status.value if history_entry.previous_status else "none",
+            new_status=history_entry.new_status.value,
+            actor=history_entry.actor,
+            timestamp=history_entry.timestamp,
+            notes=history_entry.notes,
+        )
+
+    except SuggestionNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=ErrorResponse(
+                error="not_found",
+                message=f"Suggestion not found: {suggestion_id}",
+            ).model_dump(),
+        )
+    except SuggestionRepositoryError as e:
+        # Transition validation errors
+        error_msg = str(e)
+        if "Cannot change status" in error_msg or "Cannot transition" in error_msg:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponse(
+                    error="invalid_transition",
+                    message=error_msg,
+                ).model_dump(),
+            )
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="internal_error",
+                message="Failed to update suggestion status.",
+                details={"original_error": error_msg},
+            ).model_dump(),
+        )
+    except Exception as e:
+        logger.error(f"Failed to update suggestion status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error="internal_error",
+                message="Failed to update suggestion status.",
                 details={"original_error": str(e)},
             ).model_dump(),
         )
