@@ -122,14 +122,14 @@
 
 ### Live Integration Test for User Story 4
 
-- [ ] T034 [US4] Add query performance test to tests/integration/test_deduplication_live.py (verify <2s with 100+ suggestions)
+- [x] T034 [US4] Add query performance test to tests/integration/test_deduplication_live.py (verify <2s with 100+ suggestions)
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] Add query filters to GET /suggestions endpoint (status, type, severity parameters) per OpenAPI contract
-- [ ] T036 [US4] Implement list_suggestions() with filters in SuggestionRepository using composite queries
-- [ ] T037 [US4] Create Firestore composite indexes file at firestore.indexes.json per data-model.md
-- [ ] T038 [US4] Add cursor-based pagination to list_suggestions() for efficient large result handling
+- [x] T035 [US4] Add query filters to GET /suggestions endpoint (status, type, severity parameters) per OpenAPI contract
+- [x] T036 [US4] Implement list_suggestions() with filters in SuggestionRepository using composite queries
+- [x] T037 [US4] Create Firestore composite indexes file at firestore.indexes.json per data-model.md
+- [x] T038 [US4] Add cursor-based pagination to list_suggestions() for efficient large result handling
 
 **Checkpoint**: User Story 4 complete - dashboard queries perform at scale
 
