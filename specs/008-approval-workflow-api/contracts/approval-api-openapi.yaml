@@ -1,0 +1,447 @@
+openapi: 3.0.0
+info:
+  title: Evalforge Approval Workflow API
+  version: 0.1.0
+  description: |
+    Human-in-the-loop approval workflow for EvalForge suggestions.
+    Enables platform leads to approve or reject suggestions with one click,
+    receive Slack notifications, and export approved artifacts in CI-ready formats.
+
+servers:
+  - url: /
+    description: Cloud Run deployment
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check for the approval workflow service
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /suggestions:
+    get:
+      summary: List suggestions with optional filters
+      description: |
+        Returns paginated list of suggestions. Supports filtering by status and type.
+        Results are ordered by created_at descending (newest first).
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/SuggestionStatus"
+          description: Filter by suggestion status
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/SuggestionType"
+          description: Filter by suggestion type
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of suggestions to return
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Cursor for pagination (last suggestion ID from previous page). Omit for first page.
+      responses:
+        "200":
+          description: List of suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /suggestions/{suggestionId}:
+    get:
+      summary: Get a single suggestion by ID
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The suggestion ID
+      responses:
+        "200":
+          description: Suggestion details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestionDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /suggestions/{suggestionId}/approve:
+    post:
+      summary: Approve a pending suggestion
+      description: |
+        Transitions a pending suggestion to approved status.
+        Triggers Slack webhook notification on success.
+        Returns 409 if suggestion is not in pending state.
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveRequest"
+      responses:
+        "200":
+          description: Suggestion approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Suggestion is not in pending state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /suggestions/{suggestionId}/reject:
+    post:
+      summary: Reject a pending suggestion
+      description: |
+        Transitions a pending suggestion to rejected status.
+        Requires a reason explaining why the suggestion was rejected.
+        Triggers Slack webhook notification on success.
+        Returns 409 if suggestion is not in pending state.
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectRequest"
+      responses:
+        "200":
+          description: Suggestion rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResponse"
+        "400":
+          description: Missing required reason field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Suggestion is not in pending state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /suggestions/{suggestionId}/export:
+    get:
+      summary: Export an approved suggestion in a specific format
+      description: |
+        Generates and returns the suggestion content in the requested format.
+        Only approved suggestions can be exported.
+        Returns 409 if suggestion is not approved.
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ExportFormat"
+          description: Export format (defaults to deepeval)
+      responses:
+        "200":
+          description: Exported content
+          content:
+            application/json:
+              schema:
+                type: object
+                description: DeepEval JSON format
+            text/x-python:
+              schema:
+                type: string
+                description: Pytest Python code
+            application/x-yaml:
+              schema:
+                type: string
+                description: YAML configuration
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Suggestion is not approved (cannot export)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Suggestion content missing or invalid for export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /webhooks/test:
+    post:
+      summary: Test webhook delivery
+      description: Sends a test message to the configured Slack webhook
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: Custom test message
+      responses:
+        "200":
+          description: Webhook test sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [sent, failed]
+                  message:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  responses:
+    Unauthorized:
+      description: Invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Suggestion not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    SuggestionStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    SuggestionType:
+      type: string
+      enum: [eval, guardrail, runbook]
+
+    ExportFormat:
+      type: string
+      enum: [deepeval, pytest, yaml]
+      default: deepeval
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        firestoreProject:
+          type: string
+        pendingCount:
+          type: integer
+        lastApprovalAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApproveRequest:
+      type: object
+      properties:
+        notes:
+          type: string
+          description: Optional notes for the approval
+
+    RejectRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: Required explanation for rejection
+
+    ApprovalResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        suggestion_id:
+          type: string
+        new_status:
+          $ref: "#/components/schemas/SuggestionStatus"
+        timestamp:
+          type: string
+          format: date-time
+
+    SuggestionListResponse:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuggestionSummary"
+        limit:
+          type: integer
+        next_cursor:
+          type: string
+          nullable: true
+          description: Cursor for next page (last suggestion ID), null if no more results
+        has_more:
+          type: boolean
+          description: Whether more results exist beyond this page
+
+    SuggestionSummary:
+      type: object
+      properties:
+        suggestion_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/SuggestionType"
+        status:
+          $ref: "#/components/schemas/SuggestionStatus"
+        created_at:
+          type: string
+          format: date-time
+        pattern:
+          $ref: "#/components/schemas/PatternSummary"
+
+    PatternSummary:
+      type: object
+      properties:
+        failure_type:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        trigger_condition:
+          type: string
+
+    SuggestionDetail:
+      type: object
+      properties:
+        suggestion_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/SuggestionType"
+        status:
+          $ref: "#/components/schemas/SuggestionStatus"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        pattern:
+          $ref: "#/components/schemas/PatternSummary"
+        suggestion_content:
+          type: object
+          description: Type-specific generated content
+        source_traces:
+          type: array
+          items:
+            type: string
+        approval_metadata:
+          $ref: "#/components/schemas/ApprovalMetadata"
+        version_history:
+          type: array
+          items:
+            $ref: "#/components/schemas/VersionHistoryEntry"
+
+    ApprovalMetadata:
+      type: object
+      nullable: true
+      properties:
+        actor:
+          type: string
+        action:
+          type: string
+          enum: [approved, rejected]
+        notes:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    VersionHistoryEntry:
+      type: object
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        notes:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
