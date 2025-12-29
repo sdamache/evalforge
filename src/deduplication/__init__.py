@@ -32,6 +32,12 @@ from src.deduplication.models import (
     DeduplicationRunSummary,
     PatternOutcome,
     PatternOutcomeStatus,
+    # API Response Models (US2, US4)
+    SuggestionResponse,
+    SuggestionListResponse,
+    SourceTraceResponse,
+    PatternSummaryResponse,
+    StatusHistoryResponse,
 )
 
 __all__ = [
@@ -47,4 +53,10 @@ __all__ = [
     "DeduplicationRunSummary",
     "PatternOutcome",
     "PatternOutcomeStatus",
+    # API Response Models
+    "SuggestionResponse",
+    "SuggestionListResponse",
+    "SourceTraceResponse",
+    "PatternSummaryResponse",
+    "StatusHistoryResponse",
 ]
