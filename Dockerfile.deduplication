@@ -1,0 +1,28 @@
+# Dockerfile for EvalForge Deduplication Service
+# Built for Cloud Run deployment
+# Uses Vertex AI text-embedding-004 for semantic embeddings
+
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency specifications and source code
+# Note: Source must be present BEFORE pip install -e . for editable install to work
+COPY pyproject.toml ./
+COPY src/ ./src/
+
+# Install package in editable mode (makes src/ importable as a package)
+# This also installs all dependencies from pyproject.toml
+RUN pip install --no-cache-dir -e .
+
+# Environment variables
+# PORT is automatically injected by Cloud Run (defaults to 8080)
+ENV PORT=8080
+
+# Expose the port (informational - Cloud Run manages this)
+EXPOSE ${PORT}
+
+# Run uvicorn server bound to 0.0.0.0:$PORT
+# Cloud Run requires binding to 0.0.0.0 (not localhost)
+CMD uvicorn src.deduplication.main:app --host 0.0.0.0 --port ${PORT}

@@ -1,0 +1,105 @@
+version: "3.8"
+
+services:
+  # Firestore Emulator for local development
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8086
+    ports:
+      - "8086:8086"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ingestion Service - Fetches traces from Datadog, stores to Firestore
+  ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8080"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8086
+      - GOOGLE_CLOUD_PROJECT=konveyn2ai
+      - FIRESTORE_COLLECTION_PREFIX=evalforge_
+      # Datadog credentials (mount from .env)
+      - DATADOG_API_KEY=${DATADOG_API_KEY}
+      - DATADOG_APP_KEY=${DATADOG_APP_KEY}
+      - DATADOG_SITE=${DATADOG_SITE:-datadoghq.com}
+      - TRACE_LOOKBACK_HOURS=24
+      - QUALITY_THRESHOLD=0.3
+      - PII_SALT=${PII_SALT:-local-dev-salt}
+    depends_on:
+      firestore-emulator:
+        condition: service_healthy
+
+  # Extraction Service - Extracts failure patterns from traces
+  extraction:
+    build:
+      context: .
+      dockerfile: Dockerfile.extraction
+    ports:
+      - "8002:8080"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8086
+      - GOOGLE_CLOUD_PROJECT=konveyn2ai
+      - FIRESTORE_COLLECTION_PREFIX=evalforge_
+      # Vertex AI credentials (uses application default credentials)
+      - VERTEX_AI_PROJECT=konveyn2ai
+      - VERTEX_AI_LOCATION=us-central1
+      - EXTRACTION_MODEL=gemini-2.0-flash
+      - EXTRACTION_BATCH_SIZE=5
+    volumes:
+      # Mount GCP credentials for Vertex AI access
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+    depends_on:
+      firestore-emulator:
+        condition: service_healthy
+
+  # Deduplication Service - Deduplicates patterns into suggestions
+  deduplication:
+    build:
+      context: .
+      dockerfile: Dockerfile.deduplication
+    ports:
+      - "8003:8080"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8086
+      - GOOGLE_CLOUD_PROJECT=konveyn2ai
+      - FIRESTORE_COLLECTION_PREFIX=evalforge_
+      # Vertex AI for embeddings
+      - VERTEX_AI_PROJECT=konveyn2ai
+      - VERTEX_AI_LOCATION=us-central1
+      # Deduplication config
+      - SIMILARITY_THRESHOLD=0.85
+      - EMBEDDING_MODEL=text-embedding-004
+      - DEDUP_BATCH_SIZE=20
+      - DEDUP_POLL_INTERVAL_SECONDS=300
+    volumes:
+      # Mount GCP credentials for Vertex AI access
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+    depends_on:
+      firestore-emulator:
+        condition: service_healthy
+
+  # API Service - Exposes capture queue and export endpoints
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8080"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8086
+      - GOOGLE_CLOUD_PROJECT=konveyn2ai
+      - FIRESTORE_COLLECTION_PREFIX=evalforge_
+    depends_on:
+      firestore-emulator:
+        condition: service_healthy
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8080
+
+networks:
+  default:
+    driver: bridge

@@ -1,0 +1,6 @@
+{
+  "firestore": {
+    "database": "evalforge",
+    "indexes": "firestore.indexes.json"
+  }
+}

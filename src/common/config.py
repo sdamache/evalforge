@@ -193,3 +193,71 @@ def load_extraction_settings() -> ExtractionSettings:
         batch_size=_int_env("BATCH_SIZE", default=DEFAULT_BATCH_SIZE),
         per_trace_timeout_sec=_float_env("PER_TRACE_TIMEOUT_SEC", default=DEFAULT_PER_TRACE_TIMEOUT_SEC),
     )
+
+
+# =============================================================================
+# Deduplication Service Configuration
+# =============================================================================
+
+# Default values for deduplication service
+DEFAULT_SIMILARITY_THRESHOLD = 0.85
+DEFAULT_EMBEDDING_MODEL = "text-embedding-004"
+DEFAULT_DEDUP_BATCH_SIZE = 20
+DEFAULT_DEDUP_POLL_INTERVAL_SECONDS = 300  # 5 minutes between polling runs
+
+
+@dataclass
+class EmbeddingConfig:
+    """Vertex AI embedding model configuration for deduplication service."""
+
+    model: str
+    project: str
+    location: str
+    output_dimensionality: int = 768
+
+
+@dataclass
+class DeduplicationSettings:
+    """Combined settings for deduplication service.
+
+    Includes embedding config, Firestore config, and deduplication-specific
+    operational settings like similarity threshold, batch size, and polling interval.
+    """
+
+    embedding: EmbeddingConfig
+    firestore: FirestoreConfig
+    similarity_threshold: float
+    batch_size: int
+    poll_interval_seconds: int  # Interval between polling runs (FR-015)
+
+
+def load_embedding_config() -> EmbeddingConfig:
+    """Load embedding configuration from environment variables.
+
+    Returns:
+        EmbeddingConfig with Vertex AI embedding model settings.
+    """
+    return EmbeddingConfig(
+        model=_get_env("EMBEDDING_MODEL", default=DEFAULT_EMBEDDING_MODEL),
+        project=_get_env("VERTEX_AI_PROJECT", default=_get_env("GOOGLE_CLOUD_PROJECT", default="konveyn2ai")),
+        location=_get_env("VERTEX_AI_LOCATION", default=DEFAULT_VERTEX_AI_LOCATION),
+        output_dimensionality=_int_env("EMBEDDING_DIMENSIONALITY", default=768),
+    )
+
+
+def load_deduplication_settings() -> DeduplicationSettings:
+    """Load deduplication service settings from environment variables.
+
+    Returns:
+        DeduplicationSettings with embedding, Firestore, and dedup settings.
+
+    Raises:
+        ConfigError: If required environment variables are missing or invalid.
+    """
+    return DeduplicationSettings(
+        embedding=load_embedding_config(),
+        firestore=load_firestore_config(),
+        similarity_threshold=_float_env("SIMILARITY_THRESHOLD", default=DEFAULT_SIMILARITY_THRESHOLD),
+        batch_size=_int_env("DEDUP_BATCH_SIZE", default=DEFAULT_DEDUP_BATCH_SIZE),
+        poll_interval_seconds=_int_env("DEDUP_POLL_INTERVAL_SECONDS", default=DEFAULT_DEDUP_POLL_INTERVAL_SECONDS),
+    )

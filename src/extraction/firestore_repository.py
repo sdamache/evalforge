@@ -135,6 +135,8 @@ class FirestoreRepository:
         Uses source_trace_id as document ID for idempotent writes
         (re-processing the same trace overwrites the same document).
 
+        Sets processed=False so deduplication service can pick up new patterns.
+
         Args:
             pattern: The validated FailurePattern to store.
         """
@@ -143,7 +145,12 @@ class FirestoreRepository:
 
         # Document ID is source_trace_id for idempotency
         doc_ref = collection.document(pattern.source_trace_id)
-        doc_ref.set(pattern.to_dict())
+
+        # Add processed=False for deduplication service to query
+        pattern_data = pattern.to_dict()
+        pattern_data["processed"] = False
+
+        doc_ref.set(pattern_data)
 
         logger.info(
             "pattern_stored",
