@@ -131,16 +131,75 @@ Response:
 }
 ```
 
-### List Pending Suggestions
+### List Suggestions (with filters)
 
 ```bash
+# List pending suggestions
 curl "http://localhost:8003/suggestions?status=pending&limit=10"
+
+# Filter by type and severity
+curl "http://localhost:8003/suggestions?type=eval&severity=high&limit=20"
+
+# Paginate through results using cursor
+curl "http://localhost:8003/suggestions?status=pending&cursor=<cursor_from_previous_response>"
 ```
 
-### Get Suggestion Details
+Response:
+```json
+{
+  "suggestions": [...],
+  "total": 42,
+  "nextCursor": "eyJzdWdnZXN0aW9uX2lkIjogInN1Z2dfYWJjMTIzIn0="
+}
+```
+
+### Get Suggestion Details (with Lineage)
 
 ```bash
 curl http://localhost:8003/suggestions/sugg_abc123
+```
+
+Response includes full lineage:
+```json
+{
+  "suggestionId": "sugg_abc123",
+  "type": "eval",
+  "status": "pending",
+  "severity": "high",
+  "sourceTraces": [
+    {"traceId": "trace_001", "patternId": "pat_001", "addedAt": "2025-01-05T10:00:00Z"},
+    {"traceId": "trace_002", "patternId": "pat_002", "addedAt": "2025-01-05T10:05:00Z", "similarityScore": 0.91}
+  ],
+  "versionHistory": [
+    {"newStatus": "pending", "actor": "system", "timestamp": "2025-01-05T10:00:00Z"}
+  ]
+}
+```
+
+### Approve or Reject a Suggestion
+
+```bash
+# Approve a suggestion
+curl -X PATCH http://localhost:8003/suggestions/sugg_abc123/status \
+  -H "Content-Type: application/json" \
+  -d '{"status": "approved", "actor": "reviewer@example.com", "notes": "Valid eval test case"}'
+
+# Reject a suggestion
+curl -X PATCH http://localhost:8003/suggestions/sugg_abc123/status \
+  -H "Content-Type: application/json" \
+  -d '{"status": "rejected", "actor": "reviewer@example.com", "notes": "Duplicate of existing guardrail"}'
+```
+
+Response:
+```json
+{
+  "suggestionId": "sugg_abc123",
+  "previousStatus": "pending",
+  "newStatus": "approved",
+  "actor": "reviewer@example.com",
+  "timestamp": "2025-01-05T14:30:00Z",
+  "notes": "Valid eval test case"
+}
 ```
 
 ## Development Workflow
@@ -224,10 +283,39 @@ If deduplication returns 0 patterns processed:
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Complete Test Commands
+
+Run all tests for the deduplication service:
+
+```bash
+# 1. Contract tests (no external services needed)
+PYTHONPATH=src python -m pytest tests/contract/test_deduplication_contracts.py -v
+
+# 2. Integration tests (requires GCP credentials)
+RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/integration/test_deduplication_live.py -v
+
+# 3. All deduplication tests
+RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/contract/test_deduplication_contracts.py tests/integration/test_deduplication_live.py -v
+```
+
+### Verification Checklist
+
+After running tests, verify:
+
+- [ ] **Contract Tests Pass**: All 10 schema validation tests pass
+- [ ] **Deduplication Works**: Similar patterns merge into same suggestion
+- [ ] **Lineage Visible**: source_traces shows all contributing traces
+- [ ] **Audit Trail**: version_history records all status changes
+- [ ] **Filters Work**: Query by status, type, severity returns correct results
+- [ ] **Pagination Works**: Large result sets paginate correctly
+
 ## Next Steps
 
-After deduplication is working:
-1. Run `/speckit.tasks` to generate implementation tasks
-2. Implement the service following tasks.md
-3. Test with live integration tests
-4. Deploy to Cloud Run
+The deduplication service is **fully implemented**:
+
+1. **Deploy to Cloud Run**: See `scripts/deploy.sh` for deployment commands
+2. **Set up Cloud Scheduler**: Configure 30-minute trigger for `/dedup/run-once`
+3. **Deploy Firestore indexes**: `firebase deploy --only firestore:indexes`
+4. **Issue #4**: Implement eval test generation from approved suggestions
+5. **Issue #5**: Implement guardrail rule generation from approved suggestions
+6. **Issue #6**: Implement runbook snippet generation from approved suggestions
