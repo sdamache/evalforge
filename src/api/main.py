@@ -14,11 +14,15 @@ from pydantic import BaseModel, Field, constr
 
 from src.api import capture_queue
 from src.api import exports
+from src.api.approval import router as approval_router
 from src.common.logging import log_audit
 from src.common.config import load_settings
 from src.common.logging import get_logger, log_error
 
 app = FastAPI(title="Evalforge Capture Queue API")
+
+# Include approval workflow router
+app.include_router(approval_router)
 logger = get_logger(__name__)
 
 

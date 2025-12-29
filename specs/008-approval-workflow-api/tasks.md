@@ -20,10 +20,10 @@
 
 **Purpose**: Core building blocks shared by all user stories.
 
-- [ ] T005 Define Pydantic request/response models in `src/api/approval/models.py` (align to `specs/008-approval-workflow-api/data-model.md` and OpenAPI contract)
-- [ ] T006 [P] Implement Firestore repository in `src/api/approval/repository.py` (query suggestions with cursor-based pagination per research.md, read single suggestion, atomic status update with `@firestore.transactional`)
-- [ ] T007 [P] Implement Slack webhook sender in `src/api/approval/webhook.py` (fire-and-forget with 5s timeout, Block Kit format per research.md)
-- [ ] T008 Register approval router in `src/api/main.py` with API key authentication dependency
+- [x] T005 Define Pydantic request/response models in `src/api/approval/models.py` (align to `specs/008-approval-workflow-api/data-model.md` and OpenAPI contract)
+- [x] T006 [P] Implement Firestore repository in `src/api/approval/repository.py` (query suggestions with cursor-based pagination per research.md, read single suggestion, atomic status update with `@firestore.transactional`)
+- [x] T007 [P] Implement Slack webhook sender in `src/api/approval/webhook.py` (fire-and-forget with 5s timeout, Block Kit format per research.md)
+- [x] T008 Register approval router in `src/api/main.py` with API key authentication dependency
 
 **Checkpoint**: Core infrastructure ready - user story implementation can begin.
 
