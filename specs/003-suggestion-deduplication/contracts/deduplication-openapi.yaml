@@ -1,0 +1,415 @@
+openapi: 3.0.3
+info:
+  title: EvalForge Deduplication Service
+  description: |
+    Service for deduplicating failure patterns into suggestions.
+    Polls Firestore for unprocessed patterns, computes embeddings,
+    and either merges into existing suggestions or creates new ones.
+  version: 1.0.0
+  contact:
+    name: EvalForge Team
+
+servers:
+  - url: http://localhost:8003
+    description: Local development
+  - url: https://deduplication-service.run.app
+    description: Cloud Run production
+
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Health check endpoint
+      description: Returns service health status for Cloud Run health checks
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /dedup/run-once:
+    post:
+      operationId: runDeduplication
+      summary: Run one batch of deduplication
+      description: |
+        Fetches up to `batchSize` unprocessed failure patterns from Firestore,
+        computes embeddings, and either merges into existing suggestions or
+        creates new ones. Marks processed patterns as processed=true.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeduplicationRunRequest'
+      responses:
+        '200':
+          description: Deduplication run completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeduplicationRunSummary'
+        '429':
+          description: Rate limited by embedding service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /suggestions:
+    get:
+      operationId: listSuggestions
+      summary: List suggestions with filters
+      description: Returns paginated list of suggestions filtered by status, type, or severity
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/SuggestionStatus'
+          description: Filter by status
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/SuggestionType'
+          description: Filter by suggestion type
+        - name: severity
+          in: query
+          schema:
+            $ref: '#/components/schemas/Severity'
+          description: Filter by severity
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Maximum results to return
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor from previous response
+      responses:
+        '200':
+          description: List of suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionListResponse'
+
+  /suggestions/{suggestionId}:
+    get:
+      operationId: getSuggestion
+      summary: Get suggestion by ID
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Suggestion details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '404':
+          description: Suggestion not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded]
+        version:
+          type: string
+          example: "1.0.0"
+        embedding_service:
+          type: string
+          enum: [available, unavailable]
+
+    DeduplicationRunRequest:
+      type: object
+      properties:
+        batchSize:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 50
+          description: Maximum patterns to process in this run
+        dryRun:
+          type: boolean
+          default: false
+          description: If true, compute similarity but don't persist changes
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+          default: manual
+
+    DeduplicationRunSummary:
+      type: object
+      required:
+        - runId
+        - startedAt
+        - finishedAt
+        - patternsProcessed
+        - suggestionsCreated
+        - suggestionsMerged
+      properties:
+        runId:
+          type: string
+          description: Unique identifier for this run
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+        patternsProcessed:
+          type: integer
+          description: Number of patterns fetched and processed
+        suggestionsCreated:
+          type: integer
+          description: New suggestions created
+        suggestionsMerged:
+          type: integer
+          description: Patterns merged into existing suggestions
+        embeddingErrors:
+          type: integer
+          description: Patterns that failed embedding generation
+        averageSimilarityScore:
+          type: number
+          format: float
+          description: Average similarity score for merged patterns
+        processingDurationMs:
+          type: integer
+          description: Total processing time in milliseconds
+        patternOutcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PatternOutcome'
+
+    PatternOutcome:
+      type: object
+      required:
+        - patternId
+        - status
+      properties:
+        patternId:
+          type: string
+        status:
+          type: string
+          enum: [created_new, merged, error]
+        suggestionId:
+          type: string
+          description: Target suggestion ID (for created_new or merged)
+        similarityScore:
+          type: number
+          format: float
+          description: Similarity score (for merged only)
+        errorReason:
+          type: string
+          description: Error details (for error only)
+
+    Suggestion:
+      type: object
+      required:
+        - suggestionId
+        - type
+        - status
+        - severity
+        - sourceTraces
+        - pattern
+        - createdAt
+        - updatedAt
+      properties:
+        suggestionId:
+          type: string
+        type:
+          $ref: '#/components/schemas/SuggestionType'
+        status:
+          $ref: '#/components/schemas/SuggestionStatus'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        sourceTraces:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceTraceEntry'
+        pattern:
+          $ref: '#/components/schemas/PatternSummary'
+        similarityGroup:
+          type: string
+        suggestionContent:
+          $ref: '#/components/schemas/SuggestionContent'
+        approvalMetadata:
+          $ref: '#/components/schemas/ApprovalMetadata'
+        versionHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusHistoryEntry'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SourceTraceEntry:
+      type: object
+      required:
+        - traceId
+        - patternId
+        - addedAt
+      properties:
+        traceId:
+          type: string
+        patternId:
+          type: string
+        addedAt:
+          type: string
+          format: date-time
+        similarityScore:
+          type: number
+          format: float
+
+    PatternSummary:
+      type: object
+      required:
+        - failureType
+        - triggerCondition
+        - title
+        - summary
+      properties:
+        failureType:
+          $ref: '#/components/schemas/FailureType'
+        triggerCondition:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+
+    SuggestionContent:
+      type: object
+      properties:
+        evalTest:
+          type: object
+          description: Generated eval test case (Issue #4)
+        guardrailRule:
+          type: object
+          description: Generated guardrail config (Issue #5)
+        runbookSnippet:
+          type: object
+          description: Generated runbook content (Issue #6)
+
+    ApprovalMetadata:
+      type: object
+      required:
+        - actor
+        - action
+        - timestamp
+      properties:
+        actor:
+          type: string
+        action:
+          type: string
+          enum: [approved, rejected]
+        notes:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    StatusHistoryEntry:
+      type: object
+      required:
+        - newStatus
+        - actor
+        - timestamp
+      properties:
+        previousStatus:
+          $ref: '#/components/schemas/SuggestionStatus'
+        newStatus:
+          $ref: '#/components/schemas/SuggestionStatus'
+        actor:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    SuggestionListResponse:
+      type: object
+      required:
+        - suggestions
+        - total
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+        total:
+          type: integer
+        nextCursor:
+          type: string
+          description: Cursor for next page
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+    SuggestionType:
+      type: string
+      enum: [eval, guardrail, runbook]
+
+    SuggestionStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    Severity:
+      type: string
+      enum: [low, medium, high, critical]
+
+    FailureType:
+      type: string
+      enum:
+        - hallucination
+        - toxicity
+        - wrong_tool
+        - runaway_loop
+        - pii_leak
+        - stale_data
+        - infrastructure_error
+        - client_error
