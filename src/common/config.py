@@ -261,3 +261,65 @@ def load_deduplication_settings() -> DeduplicationSettings:
         batch_size=_int_env("DEDUP_BATCH_SIZE", default=DEFAULT_DEDUP_BATCH_SIZE),
         poll_interval_seconds=_int_env("DEDUP_POLL_INTERVAL_SECONDS", default=DEFAULT_DEDUP_POLL_INTERVAL_SECONDS),
     )
+
+
+# =============================================================================
+# Eval Test Generator Configuration
+# =============================================================================
+
+DEFAULT_EVAL_TEST_BATCH_SIZE = 20
+DEFAULT_EVAL_TEST_PER_SUGGESTION_TIMEOUT_SEC = 30.0
+DEFAULT_EVAL_TEST_COST_BUDGET_USD_PER_SUGGESTION = 0.10
+
+
+@dataclass
+class EvalTestGeneratorSettings:
+    """Combined settings for eval test draft generator service."""
+
+    gemini: GeminiConfig
+    firestore: FirestoreConfig
+    batch_size: int
+    per_suggestion_timeout_sec: float
+    cost_budget_usd_per_suggestion: float
+    run_cost_budget_usd: Optional[float]
+
+
+def _optional_int_env(key: str) -> Optional[int]:
+    raw = os.getenv(key)
+    if raw is None or raw == "":
+        return None
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ConfigError(f"Invalid int for {key}: {raw}") from exc
+
+
+def _optional_float_env(key: str) -> Optional[float]:
+    raw = os.getenv(key)
+    if raw is None or raw == "":
+        return None
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ConfigError(f"Invalid float for {key}: {raw}") from exc
+
+
+def load_eval_test_generator_settings() -> EvalTestGeneratorSettings:
+    """Load eval test generator settings from environment variables."""
+    gemini = load_gemini_config()
+    override_max_tokens = _optional_int_env("EVAL_TEST_MAX_OUTPUT_TOKENS")
+    if override_max_tokens is not None:
+        gemini.max_output_tokens = override_max_tokens
+
+    return EvalTestGeneratorSettings(
+        gemini=gemini,
+        firestore=load_firestore_config(),
+        batch_size=_int_env("EVAL_TEST_BATCH_SIZE", default=DEFAULT_EVAL_TEST_BATCH_SIZE),
+        per_suggestion_timeout_sec=_float_env(
+            "EVAL_TEST_PER_SUGGESTION_TIMEOUT_SEC", default=DEFAULT_EVAL_TEST_PER_SUGGESTION_TIMEOUT_SEC
+        ),
+        cost_budget_usd_per_suggestion=_float_env(
+            "EVAL_TEST_COST_BUDGET_USD_PER_SUGGESTION", default=DEFAULT_EVAL_TEST_COST_BUDGET_USD_PER_SUGGESTION
+        ),
+        run_cost_budget_usd=_optional_float_env("EVAL_TEST_RUN_COST_BUDGET_USD"),
+    )
