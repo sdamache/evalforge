@@ -193,3 +193,66 @@ def load_extraction_settings() -> ExtractionSettings:
         batch_size=_int_env("BATCH_SIZE", default=DEFAULT_BATCH_SIZE),
         per_trace_timeout_sec=_float_env("PER_TRACE_TIMEOUT_SEC", default=DEFAULT_PER_TRACE_TIMEOUT_SEC),
     )
+
+
+# =============================================================================
+# Deduplication Service Configuration
+# =============================================================================
+
+# Default values for deduplication service
+DEFAULT_SIMILARITY_THRESHOLD = 0.85
+DEFAULT_EMBEDDING_MODEL = "text-embedding-004"
+DEFAULT_DEDUP_BATCH_SIZE = 20
+
+
+@dataclass
+class EmbeddingConfig:
+    """Vertex AI embedding model configuration for deduplication service."""
+
+    model: str
+    location: str
+    output_dimensionality: int = 768
+
+
+@dataclass
+class DeduplicationSettings:
+    """Combined settings for deduplication service.
+
+    Includes embedding config, Firestore config, and deduplication-specific
+    operational settings like similarity threshold and batch size.
+    """
+
+    embedding: EmbeddingConfig
+    firestore: FirestoreConfig
+    similarity_threshold: float
+    batch_size: int
+
+
+def load_embedding_config() -> EmbeddingConfig:
+    """Load embedding configuration from environment variables.
+
+    Returns:
+        EmbeddingConfig with Vertex AI embedding model settings.
+    """
+    return EmbeddingConfig(
+        model=_get_env("EMBEDDING_MODEL", default=DEFAULT_EMBEDDING_MODEL),
+        location=_get_env("VERTEX_AI_LOCATION", default=DEFAULT_VERTEX_AI_LOCATION),
+        output_dimensionality=_int_env("EMBEDDING_DIMENSIONALITY", default=768),
+    )
+
+
+def load_deduplication_settings() -> DeduplicationSettings:
+    """Load deduplication service settings from environment variables.
+
+    Returns:
+        DeduplicationSettings with embedding, Firestore, and dedup settings.
+
+    Raises:
+        ConfigError: If required environment variables are missing or invalid.
+    """
+    return DeduplicationSettings(
+        embedding=load_embedding_config(),
+        firestore=load_firestore_config(),
+        similarity_threshold=_float_env("SIMILARITY_THRESHOLD", default=DEFAULT_SIMILARITY_THRESHOLD),
+        batch_size=_int_env("DEDUP_BATCH_SIZE", default=DEFAULT_DEDUP_BATCH_SIZE),
+    )

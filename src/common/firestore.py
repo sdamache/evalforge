@@ -138,3 +138,9 @@ def extraction_errors_collection(prefix: Optional[str] = None) -> str:
     """Get the extraction errors collection name."""
     prefix = prefix or get_collection_prefix()
     return f"{prefix}extraction_errors"
+
+
+def suggestions_collection(prefix: Optional[str] = None) -> str:
+    """Get the suggestions collection name for deduplication service."""
+    prefix = prefix or get_collection_prefix()
+    return f"{prefix}suggestions"
