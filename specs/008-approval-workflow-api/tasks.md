@@ -37,14 +37,14 @@
 
 ### Live Integration Test (minimal mode)
 
-- [ ] T009 [P] [US1] Add live smoke test in `tests/integration/test_approval_workflow_live.py` that:
+- [x] T009 [P] [US1] Add live smoke test in `tests/integration/test_approval_workflow_live.py` that:
   creates a test Suggestion doc in Firestore (with cleanup), calls POST /suggestions/{id}/approve with valid API key, and asserts status transitions to "approved", version_history has new entry, and webhook is attempted (log check)
 
 ### Implementation
 
-- [ ] T010 [US1] Implement `approve_suggestion()` in `src/api/approval/service.py` (validate pending status, call repository atomic update, trigger webhook via BackgroundTasks)
-- [ ] T011 [US1] Implement `POST /suggestions/{suggestionId}/approve` endpoint in `src/api/approval/router.py` (per OpenAPI contract, returns ApprovalResponse)
-- [ ] T012 [US1] Add structured logging for approval actions in `src/api/approval/service.py` using `src/common/logging.py`
+- [x] T010 [US1] Implement `approve_suggestion()` in `src/api/approval/service.py` (validate pending status, call repository atomic update, trigger webhook via BackgroundTasks)
+- [x] T011 [US1] Implement `POST /suggestions/{suggestionId}/approve` endpoint in `src/api/approval/router.py` (per OpenAPI contract, returns ApprovalResponse)
+- [x] T012 [US1] Add structured logging for approval actions in `src/api/approval/service.py` using `src/common/logging.py`
 
 **Checkpoint**: Approval workflow functional and testable independently.
 
@@ -58,14 +58,14 @@
 
 ### Live Integration Test (minimal mode)
 
-- [ ] T013 [P] [US2] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
+- [x] T013 [P] [US2] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
   creates a test Suggestion doc, calls POST /suggestions/{id}/reject with reason, and asserts status is "rejected", approval_metadata.reason matches input, and version_history has rejection entry
 
 ### Implementation
 
-- [ ] T014 [US2] Implement `reject_suggestion()` in `src/api/approval/service.py` (validate pending status, require reason field, call repository atomic update, trigger webhook)
-- [ ] T015 [US2] Implement `POST /suggestions/{suggestionId}/reject` endpoint in `src/api/approval/router.py` (per OpenAPI contract, requires RejectRequest with reason)
-- [ ] T016 [US2] Add 409 Conflict response for non-pending suggestions in both approve/reject endpoints
+- [x] T014 [US2] Implement `reject_suggestion()` in `src/api/approval/service.py` (validate pending status, require reason field, call repository atomic update, trigger webhook)
+- [x] T015 [US2] Implement `POST /suggestions/{suggestionId}/reject` endpoint in `src/api/approval/router.py` (per OpenAPI contract, requires RejectRequest with reason)
+- [x] T016 [US2] Add 409 Conflict response for non-pending suggestions in both approve/reject endpoints
 
 **Checkpoint**: Approve and reject workflows both functional.
 
