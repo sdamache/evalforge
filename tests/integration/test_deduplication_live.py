@@ -504,6 +504,195 @@ class TestLineageTracking:
 
 
 # ============================================================================
+# User Story 3: Audit Trail Tests (T029)
+# ============================================================================
+
+
+class TestAuditTrail:
+    """Tests for suggestion audit trail (T029 - US3).
+
+    Verifies that version_history is populated correctly when:
+    1. Suggestion is created (initial status entry)
+    2. Status is changed (approval/rejection)
+    3. Multiple status changes are recorded (if re-transitioned - though not allowed)
+    """
+
+    def test_initial_version_history(self, repository, embedding_client, cleanup_firestore):
+        """Test that new suggestion has initial version_history entry."""
+        trace_id = f"trace_audit_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Audit test pattern - initial",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Verify initial version history
+        assert len(suggestion.version_history) == 1
+        initial_entry = suggestion.version_history[0]
+        assert initial_entry.previous_status is None  # First entry has no previous
+        assert initial_entry.new_status == SuggestionStatus.PENDING
+        assert initial_entry.actor == "system"
+        assert initial_entry.timestamp is not None
+        print(f"Initial version history entry: {initial_entry.new_status.value}")
+
+    def test_approval_adds_to_history(self, repository, embedding_client, cleanup_firestore):
+        """Test that approving a suggestion adds to version_history."""
+        trace_id = f"trace_audit_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Audit test pattern - approval",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Approve the suggestion
+        updated, history_entry = repository.update_suggestion_status(
+            suggestion_id=suggestion.suggestion_id,
+            new_status=SuggestionStatus.APPROVED,
+            actor="test@example.com",
+            notes="Approved for production use",
+        )
+
+        # Verify version history now has 2 entries
+        assert len(updated.version_history) == 2
+
+        # Verify the approval entry
+        assert history_entry.previous_status == SuggestionStatus.PENDING
+        assert history_entry.new_status == SuggestionStatus.APPROVED
+        assert history_entry.actor == "test@example.com"
+        assert history_entry.notes == "Approved for production use"
+        assert history_entry.timestamp > updated.version_history[0].timestamp
+
+        # Verify suggestion status changed
+        assert updated.status == SuggestionStatus.APPROVED
+        print(f"Version history after approval: {len(updated.version_history)} entries")
+
+    def test_rejection_adds_to_history(self, repository, embedding_client, cleanup_firestore):
+        """Test that rejecting a suggestion adds to version_history."""
+        trace_id = f"trace_audit_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Audit test pattern - rejection",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Reject the suggestion
+        updated, history_entry = repository.update_suggestion_status(
+            suggestion_id=suggestion.suggestion_id,
+            new_status=SuggestionStatus.REJECTED,
+            actor="reviewer@example.com",
+            notes="Not reproducible - edge case",
+        )
+
+        # Verify version history
+        assert len(updated.version_history) == 2
+        assert history_entry.new_status == SuggestionStatus.REJECTED
+        assert updated.status == SuggestionStatus.REJECTED
+        print(f"Rejection recorded with notes: {history_entry.notes}")
+
+    def test_approval_metadata_set(self, repository, embedding_client, cleanup_firestore):
+        """Test that approval_metadata is set on status change."""
+        trace_id = f"trace_audit_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Audit test pattern - metadata",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Initially no approval metadata
+        assert suggestion.approval_metadata is None
+
+        # Approve
+        updated, _ = repository.update_suggestion_status(
+            suggestion_id=suggestion.suggestion_id,
+            new_status=SuggestionStatus.APPROVED,
+            actor="approver@example.com",
+            notes="LGTM",
+        )
+
+        # Verify approval metadata
+        assert updated.approval_metadata is not None
+        assert updated.approval_metadata.actor == "approver@example.com"
+        assert updated.approval_metadata.action == "approved"
+        assert updated.approval_metadata.notes == "LGTM"
+        print(f"Approval metadata set: actor={updated.approval_metadata.actor}")
+
+    def test_cannot_change_approved_status(self, repository, embedding_client, cleanup_firestore):
+        """Test that approved suggestions cannot be changed (terminal state)."""
+        from src.deduplication.firestore_repository import SuggestionRepositoryError
+
+        trace_id = f"trace_audit_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Audit test pattern - terminal",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # First approve
+        repository.update_suggestion_status(
+            suggestion_id=suggestion.suggestion_id,
+            new_status=SuggestionStatus.APPROVED,
+            actor="approver@example.com",
+        )
+
+        # Try to reject after approval (should fail)
+        try:
+            repository.update_suggestion_status(
+                suggestion_id=suggestion.suggestion_id,
+                new_status=SuggestionStatus.REJECTED,
+                actor="another@example.com",
+            )
+            assert False, "Should have raised SuggestionRepositoryError"
+        except SuggestionRepositoryError as e:
+            assert "Cannot change status" in str(e)
+            print(f"Correctly prevented invalid transition: {e}")
+
+
+# ============================================================================
 # API Health Check Test
 # ============================================================================
 
@@ -670,3 +859,92 @@ class TestAPIIntegration:
             assert s["status"] == "pending"
 
         print(f"Filtered list: {len(data['suggestions'])} pending suggestions")
+
+    def test_update_status_endpoint(self, repository, embedding_client, cleanup_firestore):
+        """Test PATCH /suggestions/{suggestionId}/status endpoint (T032)."""
+        from fastapi.testclient import TestClient
+        from src.deduplication.main import app
+
+        # Create a pending suggestion
+        trace_id = f"trace_patch_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="PATCH endpoint test pattern",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Call PATCH endpoint
+        client = TestClient(app)
+        response = client.patch(
+            f"/suggestions/{suggestion.suggestion_id}/status",
+            json={
+                "status": "approved",
+                "actor": "api_test@example.com",
+                "notes": "Approved via API test",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify response
+        assert data["suggestionId"] == suggestion.suggestion_id
+        assert data["previousStatus"] == "pending"
+        assert data["newStatus"] == "approved"
+        assert data["actor"] == "api_test@example.com"
+        assert data["notes"] == "Approved via API test"
+
+        print(f"PATCH status update: {data['previousStatus']} -> {data['newStatus']}")
+
+    def test_update_status_invalid_transition(self, repository, embedding_client, cleanup_firestore):
+        """Test PATCH endpoint rejects invalid transitions (T033)."""
+        from fastapi.testclient import TestClient
+        from src.deduplication.main import app
+
+        # Create and approve a suggestion
+        trace_id = f"trace_invalid_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Invalid transition test pattern",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # First approve it
+        repository.update_suggestion_status(
+            suggestion_id=suggestion.suggestion_id,
+            new_status=SuggestionStatus.APPROVED,
+            actor="first_approver@example.com",
+        )
+
+        # Try to reject via API (should fail with 400)
+        client = TestClient(app)
+        response = client.patch(
+            f"/suggestions/{suggestion.suggestion_id}/status",
+            json={
+                "status": "rejected",
+                "actor": "second_actor@example.com",
+            },
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert data["detail"]["error"] == "invalid_transition"
+        print(f"Correctly rejected invalid transition: {data['detail']['message']}")
