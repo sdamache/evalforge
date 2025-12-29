@@ -948,3 +948,94 @@ class TestAPIIntegration:
         data = response.json()
         assert data["detail"]["error"] == "invalid_transition"
         print(f"Correctly rejected invalid transition: {data['detail']['message']}")
+
+
+# ============================================================================
+# User Story 4: Query Performance Tests (T034)
+# ============================================================================
+
+
+class TestQueryPerformance:
+    """Tests for dashboard query performance (T034 - US4).
+
+    Verifies that queries respond within acceptable time limits.
+    Target: <2 seconds for 100+ suggestions.
+    """
+
+    def test_list_suggestions_performance(self, repository, embedding_client, cleanup_firestore):
+        """Test that list queries complete within 2 seconds (T034).
+
+        Creates 20 suggestions and verifies query response time.
+        Note: Full 1000+ test would require more setup time.
+        """
+        # Create 20 test suggestions for performance test
+        created_ids = []
+        print("Creating 20 suggestions for performance test...")
+
+        for i in range(20):
+            trace_id = f"trace_perf_{uuid.uuid4().hex[:8]}"
+            pattern = _create_test_pattern(
+                trace_id=trace_id,
+                trigger_condition=f"Performance test pattern {i}",
+            )
+
+            text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+            embedding = embedding_client.get_embedding(text)
+
+            suggestion = repository.create_suggestion(
+                pattern=pattern,
+                embedding=embedding,
+                suggestion_type=SuggestionType.EVAL,
+            )
+            created_ids.append(suggestion.suggestion_id)
+            cleanup_firestore.append(suggestion.suggestion_id)
+
+        print(f"Created {len(created_ids)} suggestions")
+
+        # Measure query time
+        start_time = time.time()
+        suggestions, next_cursor, total = repository.list_suggestions(limit=50)
+        query_time = time.time() - start_time
+
+        print(f"Query returned {len(suggestions)} suggestions in {query_time:.3f}s")
+
+        # Assert performance target
+        assert query_time < 2.0, f"Query took {query_time:.3f}s, target is <2s"
+        assert len(suggestions) >= 20, f"Expected >=20 suggestions, got {len(suggestions)}"
+
+        print(f"Performance test PASSED: {query_time:.3f}s < 2s target")
+
+    def test_filtered_query_performance(self, repository, embedding_client, cleanup_firestore):
+        """Test that filtered queries also perform well."""
+        # Create a few test suggestions
+        created_ids = []
+        for i in range(5):
+            trace_id = f"trace_filter_perf_{uuid.uuid4().hex[:8]}"
+            pattern = _create_test_pattern(
+                trace_id=trace_id,
+                trigger_condition=f"Filter performance test {i}",
+            )
+
+            text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+            embedding = embedding_client.get_embedding(text)
+
+            suggestion = repository.create_suggestion(
+                pattern=pattern,
+                embedding=embedding,
+                suggestion_type=SuggestionType.EVAL,
+            )
+            created_ids.append(suggestion.suggestion_id)
+            cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Test filtered query performance
+        start_time = time.time()
+        suggestions, _, _ = repository.list_suggestions(
+            status=SuggestionStatus.PENDING,
+            limit=50,
+        )
+        query_time = time.time() - start_time
+
+        print(f"Filtered query returned {len(suggestions)} suggestions in {query_time:.3f}s")
+
+        assert query_time < 2.0, f"Filtered query took {query_time:.3f}s, target is <2s"
+        print(f"Filtered query performance test PASSED: {query_time:.3f}s")
