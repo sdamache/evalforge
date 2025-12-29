@@ -309,13 +309,85 @@ After running tests, verify:
 - [ ] **Filters Work**: Query by status, type, severity returns correct results
 - [ ] **Pagination Works**: Large result sets paginate correctly
 
+## Cloud Run Deployment
+
+### Prerequisites
+
+Before deploying, ensure:
+1. GCP project has billing enabled
+2. You're authenticated: `gcloud auth login`
+3. Bootstrap script has run: `GCP_PROJECT_ID=konveyn2ai ./scripts/bootstrap_gcp.sh`
+4. Firestore indexes are deployed: `npx firebase-tools deploy --only firestore:indexes`
+
+### Deploy to Cloud Run Staging
+
+```bash
+# Set your project ID
+export GCP_PROJECT_ID="konveyn2ai"
+
+# Deploy with default settings (includes Cloud Scheduler)
+./scripts/deploy_deduplication.sh
+
+# Deploy without Cloud Scheduler (manual triggers only)
+SKIP_SCHEDULER=1 ./scripts/deploy_deduplication.sh
+
+# Deploy with custom settings
+GCP_PROJECT_ID=konveyn2ai \
+  SIMILARITY_THRESHOLD=0.90 \
+  DEDUP_BATCH_SIZE=50 \
+  DEDUP_SCHEDULE="*/30 * * * *" \
+  ./scripts/deploy_deduplication.sh
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GCP_PROJECT_ID` | (required) | Target GCP project |
+| `GCP_REGION` | `us-central1` | Deployment region |
+| `SERVICE_NAME` | `evalforge-deduplication` | Cloud Run service name |
+| `SIMILARITY_THRESHOLD` | `0.85` | Cosine similarity threshold |
+| `DEDUP_BATCH_SIZE` | `20` | Patterns per deduplication run |
+| `DEDUP_SCHEDULE` | `*/5 * * * *` | Cron schedule (every 5 min) |
+| `SKIP_SCHEDULER` | `0` | Set to `1` to skip scheduler setup |
+
+### Verify Deployment
+
+```bash
+# Health check (requires auth token)
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  https://evalforge-deduplication-HASH-uc.a.run.app/health
+
+# Manual trigger
+curl -X POST \
+  -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"batchSize": 10, "triggeredBy": "manual"}' \
+  https://evalforge-deduplication-HASH-uc.a.run.app/dedup/run-once
+
+# View logs
+gcloud run services logs read evalforge-deduplication \
+  --region=us-central1 \
+  --project=konveyn2ai \
+  --limit=50
+```
+
+### What the Deployment Script Does
+
+1. **Creates Service Account**: `evalforge-deduplication-sa` with minimal permissions
+2. **Grants IAM Roles**:
+   - `roles/datastore.user` - Firestore read/write
+   - `roles/aiplatform.user` - Vertex AI embeddings
+3. **Builds Docker Image**: Via Cloud Build using `Dockerfile.deduplication`
+4. **Deploys to Cloud Run**: With environment variables and resource limits
+5. **Creates Cloud Scheduler Job**: Triggers `/dedup/run-once` on schedule
+
 ## Next Steps
 
 The deduplication service is **fully implemented**:
 
-1. **Deploy to Cloud Run**: See `scripts/deploy.sh` for deployment commands
-2. **Set up Cloud Scheduler**: Configure 30-minute trigger for `/dedup/run-once`
-3. **Deploy Firestore indexes**: `firebase deploy --only firestore:indexes`
-4. **Issue #4**: Implement eval test generation from approved suggestions
-5. **Issue #5**: Implement guardrail rule generation from approved suggestions
-6. **Issue #6**: Implement runbook snippet generation from approved suggestions
+1. **Deploy Firestore indexes**: `npx firebase-tools deploy --only firestore:indexes`
+2. **Deploy to Cloud Run**: `./scripts/deploy_deduplication.sh`
+3. **Issue #4**: Implement eval test generation from approved suggestions
+4. **Issue #5**: Implement guardrail rule generation from approved suggestions
+5. **Issue #6**: Implement runbook snippet generation from approved suggestions
