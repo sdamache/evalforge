@@ -80,14 +80,14 @@
 
 ### Live Integration Test for User Story 2
 
-- [ ] T024 [US2] Add lineage tracking test to tests/integration/test_deduplication_live.py (verify source_traces populated correctly)
+- [x] T024 [US2] Add lineage tracking test to tests/integration/test_deduplication_live.py (verify source_traces populated correctly)
 
 ### Implementation for User Story 2
 
-- [ ] T025 [P] [US2] Create SourceTraceEntry model in src/deduplication/models.py per data-model.md
-- [ ] T026 [US2] Ensure merge_into_suggestion() appends to source_traces array with timestamp and similarity_score
-- [ ] T027 [US2] Add GET /suggestions/{suggestionId} endpoint in src/deduplication/main.py to return full lineage
-- [ ] T028 [US2] Add GET /suggestions endpoint with pagination in src/deduplication/main.py per OpenAPI contract
+- [x] T025 [P] [US2] Create SourceTraceEntry model in src/deduplication/models.py per data-model.md
+- [x] T026 [US2] Ensure merge_into_suggestion() appends to source_traces array with timestamp and similarity_score
+- [x] T027 [US2] Add GET /suggestions/{suggestionId} endpoint in src/deduplication/main.py to return full lineage
+- [x] T028 [US2] Add GET /suggestions endpoint with pagination in src/deduplication/main.py per OpenAPI contract
 
 **Checkpoint**: User Story 2 complete - lineage visible for all suggestions
 
