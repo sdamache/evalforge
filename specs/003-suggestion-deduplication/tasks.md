@@ -101,14 +101,14 @@
 
 ### Live Integration Test for User Story 3
 
-- [ ] T029 [US3] Add audit trail test to tests/integration/test_deduplication_live.py (verify version_history populated)
+- [x] T029 [US3] Add audit trail test to tests/integration/test_deduplication_live.py (verify version_history populated)
 
 ### Implementation for User Story 3
 
-- [ ] T030 [P] [US3] Ensure StatusHistoryEntry model has previous_status, new_status, actor, timestamp, notes fields
-- [ ] T031 [US3] Implement update_suggestion_status() in SuggestionRepository that appends to version_history (FR-005)
-- [ ] T032 [US3] Add PATCH /suggestions/{suggestionId}/status endpoint for approval/rejection in src/deduplication/main.py
-- [ ] T033 [US3] Validate status transitions (only pending→approved or pending→rejected allowed) per FR-011
+- [x] T030 [P] [US3] Ensure StatusHistoryEntry model has previous_status, new_status, actor, timestamp, notes fields
+- [x] T031 [US3] Implement update_suggestion_status() in SuggestionRepository that appends to version_history (FR-005)
+- [x] T032 [US3] Add PATCH /suggestions/{suggestionId}/status endpoint for approval/rejection in src/deduplication/main.py
+- [x] T033 [US3] Validate status transitions (only pending→approved or pending→rejected allowed) per FR-011
 
 **Checkpoint**: User Story 3 complete - full audit trail for all status changes
 
