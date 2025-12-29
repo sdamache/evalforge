@@ -11,7 +11,7 @@ Per data-model.md:
 - Document ID: suggestion_id (format: sugg_{uuid})
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 import logging
 import uuid
@@ -37,7 +37,26 @@ from src.extraction.models import FailurePattern, FailureType, Severity
 if TYPE_CHECKING:
     from google.cloud.firestore import Client as FirestoreClient
 
+# Import FieldFilter for modern Firestore query syntax (avoids deprecation warnings)
+try:
+    from google.cloud.firestore_v1.base_query import FieldFilter
+except ImportError:
+    # Fallback for older versions
+    FieldFilter = None
+
 logger = logging.getLogger(__name__)
+
+
+def _where_filter(query, field: str, op: str, value):
+    """Apply a where filter using the modern FieldFilter syntax if available.
+
+    This avoids the deprecation warning: "Detected filter using positional arguments."
+    """
+    if FieldFilter is not None:
+        return query.where(filter=FieldFilter(field, op, value))
+    else:
+        # Fallback for older versions (will show warning)
+        return query.where(field, op, value)
 
 
 class SuggestionRepositoryError(Exception):
@@ -121,7 +140,7 @@ class SuggestionRepository:
         Raises:
             SuggestionRepositoryError: If creation fails.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         suggestion_id = f"sugg_{uuid.uuid4().hex[:12]}"
         similarity_group = f"group_{uuid.uuid4().hex[:8]}"
 
@@ -246,6 +265,29 @@ class SuggestionRepository:
             for vh in data["version_history"]
         ]
 
+        # Parse suggestion_content if present
+        suggestion_content = None
+        if data.get("suggestion_content"):
+            from src.deduplication.models import SuggestionContent
+            sc_data = data["suggestion_content"]
+            suggestion_content = SuggestionContent(
+                eval_test=sc_data.get("eval_test"),
+                guardrail_rule=sc_data.get("guardrail_rule"),
+                runbook_snippet=sc_data.get("runbook_snippet"),
+            )
+
+        # Parse approval_metadata if present
+        approval_metadata = None
+        if data.get("approval_metadata"):
+            from src.deduplication.models import ApprovalMetadata
+            am_data = data["approval_metadata"]
+            approval_metadata = ApprovalMetadata(
+                actor=am_data["actor"],
+                action=am_data["action"],
+                notes=am_data.get("notes"),
+                timestamp=datetime.fromisoformat(am_data["timestamp"]),
+            )
+
         return Suggestion(
             suggestion_id=data["suggestion_id"],
             type=SuggestionType(data["type"]),
@@ -255,8 +297,8 @@ class SuggestionRepository:
             pattern=pattern,
             embedding=data["embedding"],
             similarity_group=data["similarity_group"],
-            suggestion_content=None,  # TODO: Parse if present
-            approval_metadata=None,  # TODO: Parse if present
+            suggestion_content=suggestion_content,
+            approval_metadata=approval_metadata,
             version_history=version_history,
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),
@@ -275,6 +317,7 @@ class SuggestionRepository:
         """Merge a pattern into an existing suggestion.
 
         Appends to source_traces array (FR-012) and updates timestamp.
+        Prevents duplicate trace_ids from being added (idempotent merge).
 
         Args:
             suggestion_id: ID of suggestion to merge into.
@@ -288,10 +331,23 @@ class SuggestionRepository:
             SuggestionNotFoundError: If suggestion not found.
             SuggestionRepositoryError: If merge fails.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Get existing suggestion
         suggestion = self.get_suggestion_or_raise(suggestion_id)
+
+        # Check for duplicate trace_id (prevent re-merging same pattern)
+        existing_trace_ids = {st.trace_id for st in suggestion.source_traces}
+        if pattern.source_trace_id in existing_trace_ids:
+            logger.warning(
+                "Skipping duplicate trace merge",
+                extra={
+                    "suggestion_id": suggestion_id,
+                    "trace_id": pattern.source_trace_id,
+                    "pattern_id": pattern.pattern_id,
+                },
+            )
+            return suggestion  # Return unchanged suggestion (idempotent)
 
         # Create new source trace entry
         new_trace = SourceTraceEntry(
@@ -346,11 +402,7 @@ class SuggestionRepository:
         Returns:
             List of FailurePattern instances.
         """
-        query = (
-            self.patterns_ref
-            .where("processed", "==", False)
-            .limit(limit)
-        )
+        query = _where_filter(self.patterns_ref, "processed", "==", False).limit(limit)
 
         patterns = []
         for doc in query.stream():
@@ -425,7 +477,7 @@ class SuggestionRepository:
             # Use source_trace_id as that's the document ID in Firestore
             self.patterns_ref.document(pattern.source_trace_id).update({
                 "processed": True,
-                "processed_at": datetime.utcnow().isoformat(),
+                "processed_at": datetime.now(timezone.utc).isoformat(),
             })
             logger.debug(
                 "Marked pattern as processed",
@@ -468,7 +520,7 @@ class SuggestionRepository:
         Returns:
             List of (suggestion_id, embedding) tuples for pending suggestions.
         """
-        query = self.suggestions_ref.where("status", "==", "pending")
+        query = _where_filter(self.suggestions_ref, "status", "==", "pending")
 
         embeddings = []
         for doc in query.stream():
@@ -517,7 +569,7 @@ class SuggestionRepository:
         """
         from src.deduplication.models import ApprovalMetadata
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Get existing suggestion
         suggestion = self.get_suggestion_or_raise(suggestion_id)
@@ -616,11 +668,11 @@ class SuggestionRepository:
         query = self.suggestions_ref
 
         if status:
-            query = query.where("status", "==", status.value)
+            query = _where_filter(query, "status", "==", status.value)
         if suggestion_type:
-            query = query.where("type", "==", suggestion_type.value)
+            query = _where_filter(query, "type", "==", suggestion_type.value)
         if severity:
-            query = query.where("severity", "==", severity.value)
+            query = _where_filter(query, "severity", "==", severity.value)
 
         # Order by created_at for consistent pagination
         query = query.order_by("created_at", direction="DESCENDING")
@@ -694,11 +746,11 @@ class SuggestionRepository:
         query = self.suggestions_ref
 
         if status:
-            query = query.where("status", "==", status.value)
+            query = _where_filter(query, "status", "==", status.value)
         if suggestion_type:
-            query = query.where("type", "==", suggestion_type.value)
+            query = _where_filter(query, "type", "==", suggestion_type.value)
         if severity:
-            query = query.where("severity", "==", severity.value)
+            query = _where_filter(query, "severity", "==", severity.value)
 
         try:
             # Try aggregation query (Firestore 2023+)

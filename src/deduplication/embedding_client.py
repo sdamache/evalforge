@@ -170,9 +170,15 @@ class EmbeddingClient:
         model = self._get_model()
 
         try:
+            from vertexai.language_models import TextEmbeddingInput
+
+            # Create TextEmbeddingInput objects with task_type for each text
+            inputs = [
+                TextEmbeddingInput(text=t, task_type="SEMANTIC_SIMILARITY")
+                for t in texts
+            ]
             embeddings = model.get_embeddings(
-                texts=texts,
-                task_type="SEMANTIC_SIMILARITY",
+                texts=inputs,
                 output_dimensionality=self.config.output_dimensionality,
             )
             return [e.values for e in embeddings]

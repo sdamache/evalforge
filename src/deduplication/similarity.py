@@ -102,11 +102,12 @@ def find_best_match(
         return None
 
     best_match: Optional[Tuple[str, float]] = None
-    best_score = threshold  # Start at threshold so we only return matches above it
+    best_score = 0.0  # Track highest score seen
 
     for suggestion_id, embedding in existing_embeddings:
         score = cosine_similarity(new_embedding, embedding)
-        if score > best_score:
+        # Score must be >= threshold (inclusive) AND better than current best
+        if score >= threshold and score > best_score:
             best_score = score
             best_match = (suggestion_id, score)
 
