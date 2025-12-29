@@ -472,3 +472,135 @@ class SuggestionRepository:
             extra={"count": len(embeddings)},
         )
         return embeddings
+
+    # =========================================================================
+    # List Suggestions with Filters (T028, T036 - for US2/US4)
+    # =========================================================================
+
+    def list_suggestions(
+        self,
+        status: Optional[SuggestionStatus] = None,
+        suggestion_type: Optional[SuggestionType] = None,
+        severity: Optional[Severity] = None,
+        limit: int = 50,
+        cursor: Optional[str] = None,
+    ) -> Tuple[List[Suggestion], Optional[str], int]:
+        """List suggestions with optional filters and pagination.
+
+        Args:
+            status: Filter by status (pending, approved, rejected).
+            suggestion_type: Filter by type (eval, guardrail, runbook).
+            severity: Filter by severity.
+            limit: Maximum results per page (default 50, max 100).
+            cursor: Document ID to start after for pagination.
+
+        Returns:
+            Tuple of (suggestions, next_cursor, total_count).
+            next_cursor is None if no more results.
+        """
+        # Build query with filters
+        query = self.suggestions_ref
+
+        if status:
+            query = query.where("status", "==", status.value)
+        if suggestion_type:
+            query = query.where("type", "==", suggestion_type.value)
+        if severity:
+            query = query.where("severity", "==", severity.value)
+
+        # Order by created_at for consistent pagination
+        query = query.order_by("created_at", direction="DESCENDING")
+
+        # Apply cursor-based pagination
+        if cursor:
+            cursor_doc = self.suggestions_ref.document(cursor).get()
+            if cursor_doc.exists:
+                query = query.start_after(cursor_doc)
+
+        # Limit results (+1 to detect if more exist)
+        query = query.limit(limit + 1)
+
+        # Execute query
+        suggestions = []
+        docs = list(query.stream())
+
+        for doc in docs[:limit]:
+            try:
+                suggestions.append(self._doc_to_suggestion(doc.to_dict()))
+            except Exception as e:
+                logger.warning(
+                    "Failed to parse suggestion document",
+                    extra={"doc_id": doc.id, "error": str(e)},
+                )
+
+        # Determine next cursor
+        next_cursor = None
+        if len(docs) > limit:
+            # More results exist
+            next_cursor = suggestions[-1].suggestion_id if suggestions else None
+
+        # Count total (note: Firestore doesn't have efficient count, so we estimate)
+        # For accurate count, would need a separate aggregation query
+        total = len(suggestions)
+        if next_cursor:
+            total = limit + 1  # Indicate more exist
+
+        logger.info(
+            "Listed suggestions",
+            extra={
+                "count": len(suggestions),
+                "filters": {
+                    "status": status.value if status else None,
+                    "type": suggestion_type.value if suggestion_type else None,
+                    "severity": severity.value if severity else None,
+                },
+                "has_more": next_cursor is not None,
+            },
+        )
+
+        return suggestions, next_cursor, total
+
+    def count_suggestions(
+        self,
+        status: Optional[SuggestionStatus] = None,
+        suggestion_type: Optional[SuggestionType] = None,
+        severity: Optional[Severity] = None,
+    ) -> int:
+        """Count suggestions matching filters.
+
+        Note: Uses aggregation query for efficiency (Firestore 2023+).
+
+        Args:
+            status: Filter by status.
+            suggestion_type: Filter by type.
+            severity: Filter by severity.
+
+        Returns:
+            Count of matching suggestions.
+        """
+        query = self.suggestions_ref
+
+        if status:
+            query = query.where("status", "==", status.value)
+        if suggestion_type:
+            query = query.where("type", "==", suggestion_type.value)
+        if severity:
+            query = query.where("severity", "==", severity.value)
+
+        try:
+            # Try aggregation query (Firestore 2023+)
+            from google.cloud.firestore_v1.aggregation import CountAggregation
+            from google.cloud.firestore_v1.base_aggregation import AggregationQuery
+
+            agg_query = AggregationQuery(query)
+            agg_query.count(alias="count")
+            results = agg_query.get()
+            for result in results:
+                return result[0].value
+            return 0
+        except Exception:
+            # Fallback: count documents (less efficient)
+            count = 0
+            for _ in query.stream():
+                count += 1
+            return count
