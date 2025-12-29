@@ -130,6 +130,9 @@ python -m src.extraction.main
 
 # API service (port 8000) - approval workflow
 python -m src.api.main
+
+# Eval test generator service (port 8004) - turns suggestions into eval test drafts
+python -m src.generators.eval_tests.main
 ```
 
 #### Running Extraction Service
@@ -155,6 +158,31 @@ curl -X POST "http://localhost:8002/extraction/run-once" \
 ```
 
 For detailed extraction setup, see [Extraction Quickstart](specs/002-extract-failure-patterns/quickstart.md).
+
+#### Running Eval Test Generator Service
+
+The eval test generator turns eval-type suggestions into framework-agnostic JSON eval test drafts:
+
+```bash
+# 1. Start eval test generator service
+python -m src.generators.eval_tests.main
+# Service starts on http://localhost:8004
+
+# 2. Trigger a batch generation run
+curl -X POST "http://localhost:8004/eval-tests/run-once" \
+  -H "Content-Type: application/json" \
+  -d '{"batchSize":20,"triggeredBy":"manual"}'
+
+# 3. Generate/regenerate a single suggestion (overwrite guarded)
+curl -X POST "http://localhost:8004/eval-tests/generate/sugg_abc123" \
+  -H "Content-Type: application/json" \
+  -d '{"forceOverwrite": false, "triggeredBy":"manual"}'
+
+# 4. Fetch the current draft + approval metadata
+curl "http://localhost:8004/eval-tests/sugg_abc123"
+```
+
+For detailed setup and operational notes, see [Eval Test Generator Quickstart](specs/004-eval-test-case-generator/quickstart.md).
 
 ### 🌥️ GCP Cloud Deployment
 
