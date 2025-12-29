@@ -365,6 +365,145 @@ class TestDeduplicationIntegration:
 
 
 # ============================================================================
+# User Story 2: Lineage Tracking Tests (T024)
+# ============================================================================
+
+
+class TestLineageTracking:
+    """Tests for suggestion lineage tracking (T024 - US2).
+
+    Verifies that source_traces are populated correctly when:
+    1. Creating a new suggestion from a pattern
+    2. Merging additional patterns into existing suggestions
+    3. Retrieving suggestions via API returns full lineage
+    """
+
+    def test_lineage_on_create(self, repository, embedding_client, cleanup_firestore):
+        """Test that new suggestion has correct initial source trace."""
+        trace_id = f"trace_lineage_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Unique lineage test pattern",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Verify lineage
+        assert len(suggestion.source_traces) == 1
+        first_trace = suggestion.source_traces[0]
+        assert first_trace.trace_id == trace_id
+        assert first_trace.pattern_id == pattern.pattern_id
+        assert first_trace.similarity_score is None  # First trace has no score
+        assert first_trace.added_at is not None
+        print(f"Created suggestion with 1 source trace: {first_trace.trace_id}")
+
+    def test_lineage_on_merge(self, repository, embedding_client, cleanup_firestore):
+        """Test that merging adds to source_traces with correct metadata."""
+        # Create initial suggestion
+        trace_id_1 = f"trace_lineage_{uuid.uuid4().hex[:8]}"
+        pattern1 = _create_test_pattern(
+            trace_id=trace_id_1,
+            trigger_condition="First lineage pattern for merge test",
+        )
+
+        text1 = f"{pattern1.failure_type.value}: {pattern1.trigger_condition}"
+        embedding1 = embedding_client.get_embedding(text1)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern1,
+            embedding=embedding1,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Merge second pattern
+        trace_id_2 = f"trace_lineage_{uuid.uuid4().hex[:8]}"
+        pattern2 = _create_test_pattern(
+            trace_id=trace_id_2,
+            trigger_condition="Second lineage pattern for merge test",
+        )
+
+        similarity_score = 0.92
+        updated = repository.merge_into_suggestion(
+            suggestion_id=suggestion.suggestion_id,
+            pattern=pattern2,
+            similarity_score=similarity_score,
+        )
+
+        # Verify lineage now has 2 entries
+        assert len(updated.source_traces) == 2
+
+        # First trace
+        first = updated.source_traces[0]
+        assert first.trace_id == trace_id_1
+        assert first.similarity_score is None
+
+        # Second trace
+        second = updated.source_traces[1]
+        assert second.trace_id == trace_id_2
+        assert second.similarity_score == similarity_score
+        assert second.added_at > first.added_at
+
+        print(f"Merged suggestion now has {len(updated.source_traces)} traces")
+
+    def test_lineage_multiple_merges(self, repository, embedding_client, cleanup_firestore):
+        """Test that multiple merges accumulate correctly."""
+        # Create initial suggestion
+        trace_ids = []
+        trace_id_initial = f"trace_multi_{uuid.uuid4().hex[:8]}"
+        trace_ids.append(trace_id_initial)
+
+        pattern = _create_test_pattern(
+            trace_id=trace_id_initial,
+            trigger_condition="Initial pattern for multi-merge test",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Merge 4 more patterns
+        for i in range(4):
+            trace_id = f"trace_multi_{uuid.uuid4().hex[:8]}"
+            trace_ids.append(trace_id)
+
+            merge_pattern = _create_test_pattern(
+                trace_id=trace_id,
+                trigger_condition=f"Merge pattern {i+1} for multi-merge test",
+            )
+
+            suggestion = repository.merge_into_suggestion(
+                suggestion_id=suggestion.suggestion_id,
+                pattern=merge_pattern,
+                similarity_score=0.90 + (i * 0.01),
+            )
+
+        # Verify all 5 traces are present
+        assert len(suggestion.source_traces) == 5
+
+        # Verify all trace IDs are captured
+        captured_trace_ids = [st.trace_id for st in suggestion.source_traces]
+        for tid in trace_ids:
+            assert tid in captured_trace_ids
+
+        print(f"Multi-merge test: {len(suggestion.source_traces)} traces accumulated")
+
+
+# ============================================================================
 # API Health Check Test
 # ============================================================================
 
@@ -385,3 +524,149 @@ class TestAPIIntegration:
         assert data["status"] == "healthy"
         assert data["version"] == "1.0.0"
         print(f"Health check: {data}")
+
+    def test_get_suggestion_endpoint(self, repository, embedding_client, cleanup_firestore):
+        """Test GET /suggestions/{suggestionId} returns full lineage (T027)."""
+        from fastapi.testclient import TestClient
+        from src.deduplication.main import app
+
+        # Create a suggestion with 2 traces
+        trace_id_1 = f"trace_api_{uuid.uuid4().hex[:8]}"
+        pattern1 = _create_test_pattern(
+            trace_id=trace_id_1,
+            trigger_condition="API test pattern 1",
+        )
+
+        text1 = f"{pattern1.failure_type.value}: {pattern1.trigger_condition}"
+        embedding1 = embedding_client.get_embedding(text1)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern1,
+            embedding=embedding1,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Merge second pattern
+        trace_id_2 = f"trace_api_{uuid.uuid4().hex[:8]}"
+        pattern2 = _create_test_pattern(
+            trace_id=trace_id_2,
+            trigger_condition="API test pattern 2",
+        )
+        repository.merge_into_suggestion(
+            suggestion_id=suggestion.suggestion_id,
+            pattern=pattern2,
+            similarity_score=0.91,
+        )
+
+        # Call API endpoint
+        client = TestClient(app)
+        response = client.get(f"/suggestions/{suggestion.suggestion_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify response structure
+        assert data["suggestionId"] == suggestion.suggestion_id
+        assert data["type"] == "eval"
+        assert data["status"] == "pending"
+
+        # Verify lineage in response
+        assert len(data["sourceTraces"]) == 2
+        trace_ids_in_response = [st["traceId"] for st in data["sourceTraces"]]
+        assert trace_id_1 in trace_ids_in_response
+        assert trace_id_2 in trace_ids_in_response
+
+        print(f"GET suggestion returned {len(data['sourceTraces'])} traces")
+
+    def test_get_suggestion_not_found(self):
+        """Test GET /suggestions/{suggestionId} returns 404 for non-existent."""
+        from fastapi.testclient import TestClient
+        from src.deduplication.main import app
+
+        client = TestClient(app)
+        response = client.get("/suggestions/sugg_nonexistent123")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert data["detail"]["error"] == "not_found"
+        print("404 returned correctly for non-existent suggestion")
+
+    def test_list_suggestions_endpoint(self, repository, embedding_client, cleanup_firestore):
+        """Test GET /suggestions returns paginated list (T028)."""
+        from fastapi.testclient import TestClient
+        from src.deduplication.main import app
+
+        # Create 3 suggestions
+        created_ids = []
+        for i in range(3):
+            trace_id = f"trace_list_{uuid.uuid4().hex[:8]}"
+            pattern = _create_test_pattern(
+                trace_id=trace_id,
+                trigger_condition=f"List test pattern {i}",
+            )
+
+            text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+            embedding = embedding_client.get_embedding(text)
+
+            suggestion = repository.create_suggestion(
+                pattern=pattern,
+                embedding=embedding,
+                suggestion_type=SuggestionType.EVAL,
+            )
+            created_ids.append(suggestion.suggestion_id)
+            cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Call API endpoint
+        client = TestClient(app)
+        response = client.get("/suggestions?limit=10")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify response structure
+        assert "suggestions" in data
+        assert "total" in data
+        assert len(data["suggestions"]) >= 3
+
+        # Verify our created suggestions are in the list
+        returned_ids = [s["suggestionId"] for s in data["suggestions"]]
+        for cid in created_ids:
+            assert cid in returned_ids
+
+        print(f"List returned {len(data['suggestions'])} suggestions")
+
+    def test_list_suggestions_with_status_filter(self, repository, embedding_client, cleanup_firestore):
+        """Test GET /suggestions with status filter."""
+        from fastapi.testclient import TestClient
+        from src.deduplication.main import app
+
+        # Create a pending suggestion
+        trace_id = f"trace_filter_{uuid.uuid4().hex[:8]}"
+        pattern = _create_test_pattern(
+            trace_id=trace_id,
+            trigger_condition="Filter test pattern",
+        )
+
+        text = f"{pattern.failure_type.value}: {pattern.trigger_condition}"
+        embedding = embedding_client.get_embedding(text)
+
+        suggestion = repository.create_suggestion(
+            pattern=pattern,
+            embedding=embedding,
+            suggestion_type=SuggestionType.EVAL,
+        )
+        cleanup_firestore.append(suggestion.suggestion_id)
+
+        # Filter by pending status
+        client = TestClient(app)
+        response = client.get("/suggestions?status=pending&limit=10")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all returned are pending
+        for s in data["suggestions"]:
+            assert s["status"] == "pending"
+
+        print(f"Filtered list: {len(data['suggestions'])} pending suggestions")
