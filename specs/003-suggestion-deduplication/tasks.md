@@ -139,11 +139,11 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T039 [P] Add contract schema validation test in tests/contract/test_deduplication_contracts.py
-- [ ] T040 [P] Validate Suggestion model serialization matches OpenAPI schema in tests/contract/test_deduplication_contracts.py
-- [ ] T041 Update quickstart.md with actual test commands and verification steps
-- [ ] T042 Add deduplication service to docker-compose.yml
-- [ ] T043 Run full test suite and fix any issues: RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/integration/test_deduplication_live.py -v
+- [x] T039 [P] Add contract schema validation test in tests/contract/test_deduplication_contracts.py
+- [x] T040 [P] Validate Suggestion model serialization matches OpenAPI schema in tests/contract/test_deduplication_contracts.py
+- [x] T041 Update quickstart.md with actual test commands and verification steps
+- [x] T042 Add deduplication service to docker-compose.yml
+- [x] T043 Run full test suite and fix any issues: RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/integration/test_deduplication_live.py -v
 
 ---
 
