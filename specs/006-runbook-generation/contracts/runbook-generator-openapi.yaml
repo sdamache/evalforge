@@ -1,0 +1,456 @@
+openapi: 3.0.3
+info:
+  title: Runbook Draft Generator API
+  description: |
+    Generates operational runbooks from failure patterns.
+    Follows the same architecture as the Eval Test Generator (Issue #4).
+  version: 1.0.0
+  contact:
+    name: EvalForge Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://runbook-generator.run.app
+    description: Production (Cloud Run)
+
+paths:
+  /health:
+    get:
+      summary: Health check with backlog info
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /runbooks/run-once:
+    post:
+      summary: Trigger batch runbook generation
+      operationId: runBatchGeneration
+      tags:
+        - Generation
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunbookRunRequest'
+      responses:
+        '200':
+          description: Batch generation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunbookRunSummary'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /runbooks/generate/{suggestionId}:
+    post:
+      summary: Generate runbook for a specific suggestion
+      operationId: generateSingleRunbook
+      tags:
+        - Generation
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The suggestion ID to generate runbook for
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunbookGenerateRequest'
+      responses:
+        '200':
+          description: Runbook generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunbookGenerateResponse'
+        '404':
+          description: Suggestion not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict - human-edited runbook exists (use forceOverwrite)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Gemini rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /runbooks/{suggestionId}:
+    get:
+      summary: Retrieve runbook draft for a suggestion
+      operationId: getRunbook
+      tags:
+        - Retrieval
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The suggestion ID
+      responses:
+        '200':
+          description: Runbook retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunbookArtifactResponse'
+        '404':
+          description: Suggestion or runbook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+          example: "1.0.0"
+        backlog:
+          type: object
+          properties:
+            pendingRunbookSuggestions:
+              type: integer
+              example: 42
+        lastPersistentRun:
+          $ref: '#/components/schemas/RunbookRunSummary'
+        config:
+          type: object
+          properties:
+            model:
+              type: string
+              example: "gemini-2.5-flash"
+            batchSize:
+              type: integer
+              example: 20
+            perSuggestionTimeoutSec:
+              type: number
+              example: 30
+            costBudgetUsdPerSuggestion:
+              type: number
+              example: 0.10
+
+    RunbookRunRequest:
+      type: object
+      properties:
+        batchSize:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+          description: Number of suggestions to process
+        suggestionIds:
+          type: array
+          items:
+            type: string
+          description: Specific suggestion IDs to process (optional)
+        dryRun:
+          type: boolean
+          default: false
+          description: If true, generate but don't persist
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+          default: manual
+
+    RunbookGenerateRequest:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+          default: false
+        forceOverwrite:
+          type: boolean
+          default: false
+          description: If true, overwrite human-edited runbooks
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+          default: manual
+
+    RunbookRunSummary:
+      type: object
+      required:
+        - runId
+        - startedAt
+        - finishedAt
+        - triggeredBy
+        - batchSize
+        - pickedUpCount
+        - generatedCount
+        - skippedCount
+        - errorCount
+        - processingDurationMs
+      properties:
+        runId:
+          type: string
+          example: "run_20251230_120000_ab12cd34"
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+        batchSize:
+          type: integer
+        pickedUpCount:
+          type: integer
+        generatedCount:
+          type: integer
+        skippedCount:
+          type: integer
+        errorCount:
+          type: integer
+        processingDurationMs:
+          type: integer
+        suggestionOutcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunbookOutcome'
+
+    RunbookOutcome:
+      type: object
+      required:
+        - suggestionId
+        - status
+      properties:
+        suggestionId:
+          type: string
+        status:
+          type: string
+          enum: [generated, skipped, error]
+        errorReason:
+          type: string
+
+    RunbookGenerateResponse:
+      type: object
+      required:
+        - suggestionId
+        - status
+      properties:
+        suggestionId:
+          type: string
+        status:
+          type: string
+          enum: [generated, skipped, error]
+        runbook:
+          $ref: '#/components/schemas/RunbookDraft'
+
+    RunbookArtifactResponse:
+      type: object
+      required:
+        - suggestionId
+        - suggestionStatus
+        - runbook
+      properties:
+        suggestionId:
+          type: string
+        suggestionStatus:
+          type: string
+          enum: [pending, approved, rejected]
+        approvalMetadata:
+          $ref: '#/components/schemas/ApprovalMetadata'
+        runbook:
+          $ref: '#/components/schemas/RunbookDraft'
+
+    RunbookDraft:
+      type: object
+      required:
+        - runbookId
+        - title
+        - rationale
+        - markdownContent
+        - symptoms
+        - diagnosisCommands
+        - mitigationSteps
+        - escalationCriteria
+        - source
+        - status
+        - editSource
+        - generatedAt
+        - updatedAt
+        - generatorMeta
+      properties:
+        runbookId:
+          type: string
+          example: "runbook_sugg_abc123"
+        title:
+          type: string
+          example: "Stale Data - Operational Runbook"
+        rationale:
+          type: string
+          description: Plain-language reasoning explaining why this runbook was generated, citing source trace
+          example: "Generated from production incident dd_trace_123 where LLM agent recommended discontinued products due to stale inventory cache."
+        markdownContent:
+          type: string
+          description: Full Markdown content ready for Confluence/GitHub
+        symptoms:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        diagnosisCommands:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          description: Specific commands/queries for diagnosis
+        mitigationSteps:
+          type: array
+          items:
+            type: string
+        escalationCriteria:
+          type: string
+        source:
+          $ref: '#/components/schemas/RunbookDraftSource'
+        status:
+          type: string
+          enum: [draft, needs_human_input]
+        editSource:
+          type: string
+          enum: [generated, human]
+        generatedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        generatorMeta:
+          $ref: '#/components/schemas/RunbookDraftGeneratorMeta'
+
+    RunbookDraftSource:
+      type: object
+      required:
+        - suggestionId
+        - canonicalTraceId
+        - canonicalPatternId
+        - traceIds
+        - patternIds
+      properties:
+        suggestionId:
+          type: string
+        canonicalTraceId:
+          type: string
+        canonicalPatternId:
+          type: string
+        traceIds:
+          type: array
+          items:
+            type: string
+        patternIds:
+          type: array
+          items:
+            type: string
+
+    RunbookDraftGeneratorMeta:
+      type: object
+      required:
+        - model
+        - temperature
+        - promptHash
+        - responseSha256
+        - runId
+      properties:
+        model:
+          type: string
+          example: "gemini-2.5-flash"
+        temperature:
+          type: number
+          example: 0.3
+        promptHash:
+          type: string
+          example: "sha256:abc123..."
+        responseSha256:
+          type: string
+          example: "sha256:def456..."
+        runId:
+          type: string
+          example: "run_20251230_120000_ab12cd34"
+
+    ApprovalMetadata:
+      type: object
+      properties:
+        actor:
+          type: string
+        action:
+          type: string
+          enum: [approved, rejected]
+        timestamp:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "not_found"
+        message:
+          type: string
+          example: "Suggestion not found: sugg_xyz"
+        details:
+          type: object
+          additionalProperties: true
+
+tags:
+  - name: Health
+    description: Service health and status
+  - name: Generation
+    description: Runbook generation endpoints
+  - name: Retrieval
+    description: Runbook retrieval endpoints
