@@ -104,7 +104,7 @@ As an ML engineer, I want to see a coverage improvement metric so that I can dem
 - **FR-006**: System MUST display a line chart showing suggestions generated vs approved over time (last 7 days)
 - **FR-007**: System MUST display a coverage improvement metric (approved evals / total failures percentage)
 - **FR-008**: System MUST push custom metrics to Datadog for dashboard widgets to consume
-- **FR-009**: System MUST refresh dashboard data at regular intervals to show near real-time status (within 10 seconds of source data changes)
+- **FR-009**: System MUST refresh App Builder table data within 10 seconds of source changes (via direct API queries); metric-driven widgets refresh at 60-second intervals aligned with the metrics publisher cadence
 - **FR-010**: System MUST sort the approval queue by severity (critical first), then by age (oldest first)
 
 ### Key Entities
@@ -120,7 +120,7 @@ As an ML engineer, I want to see a coverage improvement metric so that I can dem
 
 - **SC-001**: Dashboard loads completely within 2 seconds for up to 1000 suggestions
 - **SC-002**: Approve/reject actions complete within 3 seconds from click to visible status update
-- **SC-003**: Dashboard data reflects Firestore changes within 10 seconds (near real-time)
+- **SC-003**: App Builder table reflects Firestore changes within 10 seconds; metric widgets within 60 seconds (aligned with publisher cadence)
 - **SC-004**: Approved count increments in real-time on dashboard after approval action
 - **SC-005**: ML engineers can complete a weekly review of 20 suggestions in under 10 minutes (vs. manual Firestore inspection)
 - **SC-006**: 95% of dashboard page loads render successfully without errors
