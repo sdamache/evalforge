@@ -91,6 +91,7 @@ def build_runbook_generation_prompt(
     canonical_pattern: Dict[str, Any],
     trace_ids: List[str],
     pattern_ids: List[str],
+    canonical_trace_id: str,
 ) -> str:
     """Build the generation prompt for a runbook draft.
 
@@ -104,6 +105,7 @@ def build_runbook_generation_prompt(
         canonical_pattern: Primary failure pattern with reproduction context
         trace_ids: All contributing trace IDs for lineage (FR-007)
         pattern_ids: All contributing pattern IDs for lineage (FR-007)
+        canonical_trace_id: The canonical trace ID from the selected pattern
 
     Returns:
         Prompt string for Gemini runbook generation
@@ -128,9 +130,6 @@ def build_runbook_generation_prompt(
 
     # Get failure-type-specific diagnostic commands
     diagnostic_suggestions = FAILURE_TYPE_DIAGNOSTICS.get(failure_type, DEFAULT_DIAGNOSTICS)
-
-    # Build canonical trace reference
-    canonical_trace_id = trace_ids[0] if trace_ids else "unknown"
 
     return f"""
 You are generating an SRE operational runbook for Evalforge.

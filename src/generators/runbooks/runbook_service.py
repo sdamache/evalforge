@@ -455,6 +455,7 @@ class RunbookService:
             canonical_pattern=sanitized_pattern,
             trace_ids=trace_ids,
             pattern_ids=pattern_ids,
+            canonical_trace_id=canonical_trace_id,
         )
 
         try:
