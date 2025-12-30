@@ -144,3 +144,15 @@ def suggestions_collection(prefix: Optional[str] = None) -> str:
     """Get the suggestions collection name for deduplication service."""
     prefix = prefix or get_collection_prefix()
     return f"{prefix}suggestions"
+
+
+def eval_test_runs_collection(prefix: Optional[str] = None) -> str:
+    """Get the eval test generator run summaries collection name."""
+    prefix = prefix or get_collection_prefix()
+    return f"{prefix}eval_test_runs"
+
+
+def eval_test_errors_collection(prefix: Optional[str] = None) -> str:
+    """Get the eval test generator errors collection name."""
+    prefix = prefix or get_collection_prefix()
+    return f"{prefix}eval_test_errors"

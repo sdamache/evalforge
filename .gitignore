@@ -87,6 +87,7 @@ credentials*.json
 # =============================================================================
 # Note: .gcloudignore is intentionally tracked for GCP automation (Issue #11)
 application_default_credentials.json
+.gcloud/
 
 # =============================================================================
 # Datadog
@@ -132,3 +133,10 @@ firestore-debug-*.log
 # Git Worktrees
 # =============================================================================
 .worktrees/
+
+# =============================================================================
+# Local Tooling Caches
+# =============================================================================
+.pip-cache/
+.uv-cache/
+.uv-python/

@@ -96,3 +96,9 @@ RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/integration/test_eval_tes
 - **Reliability**: Gemini calls retry with exponential backoff (3 attempts); failures are isolated per suggestion.
 - **Observability**: Logs include `run_id`, `suggestion_id`, canonical source IDs, and prompt/response hashes.
 - **Privacy/PII**: Any stored text is redacted + truncated; no raw user PII is persisted.
+
+## Common Failure Modes
+
+- **Gemini rate limits / quota (429)**: Rerun later or reduce `EVAL_TEST_BATCH_SIZE` / `GEMINI_MAX_OUTPUT_TOKENS`. Per-suggestion failures are recorded and do not block the run.
+- **Missing patterns or insufficient reproduction context**: The generator writes a `status="needs_human_input"` draft with TODO placeholders instead of fabricating details.
+- **Overwrite blocked**: If `suggestion_content.eval_test.edit_source="human"`, regeneration is blocked unless you pass `{"forceOverwrite": true}` to `POST /eval-tests/generate/{suggestionId}`.
