@@ -5,7 +5,8 @@ Implements /suggestions/* endpoints per OpenAPI contract.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -40,6 +41,29 @@ from src.api.approval.webhook import send_test_notification
 from src.common.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _parse_datetime(value: Any) -> datetime:
+    """Parse datetime from various formats (Firestore Timestamp, ISO string, datetime).
+
+    Firestore returns Timestamp objects for datetime fields, but we might also
+    receive ISO strings from some sources.
+    """
+    if value is None:
+        return datetime.now(timezone.utc)
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    # Firestore Timestamp object has a to_datetime() method
+    if hasattr(value, "to_datetime"):
+        return value.to_datetime()
+    # Fallback - try to convert from timestamp
+    if hasattr(value, "timestamp"):
+        return datetime.fromtimestamp(value.timestamp(), tz=timezone.utc)
+    # Last resort
+    return datetime.now(timezone.utc)
+
 
 router = APIRouter(tags=["approval"])
 
@@ -327,12 +351,18 @@ def list_suggestions(
                 trigger_condition=s["pattern"].get("trigger_condition"),
             )
 
+        # Get severity from top-level or pattern
+        severity = s.get("severity")
+        if not severity and s.get("pattern"):
+            severity = s["pattern"].get("severity")
+
         summaries.append(
             SuggestionSummary(
                 suggestion_id=s["suggestion_id"],
                 type=SuggestionType(s.get("type", "eval")),
                 status=SuggestionStatus(s.get("status", "pending")),
-                created_at=datetime.fromisoformat(s["created_at"]),
+                severity=severity,
+                created_at=_parse_datetime(s.get("created_at")),
                 pattern=pattern,
             )
         )

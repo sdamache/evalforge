@@ -58,10 +58,18 @@ Tests use `responses` library to mock HTTP calls and `monkeypatch` for environme
 2. **Sanitization** (`pii_sanitizer.py`): Strips PII fields, hashes user IDs, redacts prompts/outputs
 3. **Storage**: Writes `FailureCapture` documents to Firestore `{prefix}raw_traces` collection
 4. **API** (`src/api/`): Exposes `/capture-queue` for browsing and `/exports` for downstream systems
+5. **Dashboard** (`src/dashboard/`): Publishes metrics to Datadog for visualization in App Builder dashboard
 
 ### Key Domain Models (`src/ingestion/models.py`)
 - `FailureCapture`: Core entity storing sanitized trace with failure classification, severity, recurrence tracking, and export status
 - `ExportPackage`: Represents an exported failure sent to downstream systems
+
+### Dashboard Module (`src/dashboard/`)
+- `metrics_publisher.py`: Cloud Function entry point for publishing metrics to Datadog
+- `datadog_client.py`: Datadog API client wrapper for metrics submission
+- `aggregator.py`: Firestore aggregation queries for suggestion counts
+- `models.py`: MetricPayload, MetricSeries, SuggestionCounts dataclasses
+- `config.py`: Dashboard-specific configuration (DashboardConfig)
 
 ### Configuration (`src/common/config.py`)
 All settings loaded from environment variables via `load_settings()`. Key configs:
@@ -88,17 +96,45 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 - Pagination uses `start_after(DocumentSnapshot)` pattern, returning document ID as cursor
 
 ## Active Technologies
+- Firestore `evalforge_suggestions` collection (read-only for this feature) (007-datadog-dashboard)
 
 **Core Stack** (shared across features):
 - Python 3.11, FastAPI, google-cloud-firestore, pydantic, tenacity
 
 **Feature-specific additions**:
 - 003-suggestion-deduplication: google-cloud-aiplatform, numpy
+- 007-datadog-dashboard: datadog-api-client, functions-framework
 - 008-approval-workflow-api: requests (Slack webhooks), PyYAML (export)
 
 **Firestore Collections**:
 - `evalforge_failure_patterns` (input) → `evalforge_suggestions` (output)
 
 ## Recent Changes
+- 007-datadog-dashboard: Added Datadog dashboard integration with metrics publisher Cloud Function
 - 008-approval-workflow-api: Added requests (Slack webhooks), PyYAML (export formats)
 - 003-suggestion-deduplication: Added google-cloud-aiplatform, numpy
+
+## Dashboard Module Commands
+
+```bash
+# Deploy metrics publisher to Cloud Functions
+GCP_PROJECT_ID=konveyn2ai ./scripts/deploy_metrics_publisher.sh
+
+# Run dashboard integration tests (requires DATADOG_API_KEY in .env.local)
+RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/integration/test_metrics_publisher_live.py -v
+
+# Run approval action tests (requires APPROVAL_API_URL in .env.local)
+RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/integration/test_approval_action_live.py -v
+
+# Run smoke tests (requires both Datadog and Approval API credentials)
+RUN_LIVE_TESTS=1 PYTHONPATH=src python -m pytest tests/smoke/test_dashboard_smoke.py -v
+```
+
+### Datadog Metrics Published
+- `evalforge.suggestions.pending` - Count of pending suggestions
+- `evalforge.suggestions.approved` - Count of approved suggestions
+- `evalforge.suggestions.rejected` - Count of rejected suggestions
+- `evalforge.suggestions.total` - Total suggestion count
+- `evalforge.suggestions.by_type` - Count by type (tagged: type:eval|guardrail|runbook)
+- `evalforge.suggestions.by_severity` - Count by severity (tagged: severity:low|medium|high|critical)
+- `evalforge.coverage.improvement` - Coverage improvement percentage

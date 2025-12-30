@@ -8,6 +8,7 @@ version = "0.0.0"
 requires-python = ">=3.11"
 dependencies = [
   "requests",
+  "httpx",
   "fastapi",
   "uvicorn",
   "google-cloud-firestore",
@@ -15,11 +16,12 @@ dependencies = [
   "google-genai==1.0.0",
   "tenacity",
   "pydantic==2.4.0",
+  "datadog-api-client",
+  "functions-framework",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "httpx",
   "pytest",
   "pytest-timeout",
   "pyyaml",

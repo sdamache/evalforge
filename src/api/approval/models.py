@@ -87,6 +87,7 @@ class SuggestionSummary(BaseModel):
     suggestion_id: str
     type: SuggestionType
     status: SuggestionStatus
+    severity: Optional[str] = None
     created_at: datetime
     pattern: Optional[PatternSummary] = None
 

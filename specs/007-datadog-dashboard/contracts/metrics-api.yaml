@@ -1,0 +1,187 @@
+# Datadog Metrics API Contract
+# Feature: 007-datadog-dashboard
+# API: Datadog Metrics API v2
+# Documentation: https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
+
+openapi: 3.0.3
+info:
+  title: Datadog Metrics API - EvalForge Integration
+  version: 1.0.0
+  description: |
+    Contract for pushing EvalForge suggestion metrics to Datadog.
+    Uses Datadog Metrics API v2 endpoint.
+
+servers:
+  - url: https://api.datadoghq.com/api/v2
+    description: Datadog US1 (default)
+  - url: https://api.us3.datadoghq.com/api/v2
+    description: Datadog US3
+  - url: https://api.us5.datadoghq.com/api/v2
+    description: Datadog US5
+  - url: https://api.datadoghq.eu/api/v2
+    description: Datadog EU1
+
+paths:
+  /series:
+    post:
+      summary: Submit metrics
+      description: Push EvalForge suggestion metrics to Datadog
+      operationId: submitMetrics
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetricPayload'
+            examples:
+              suggestionCounts:
+                summary: Typical metrics push
+                value:
+                  series:
+                    - metric: evalforge.suggestions.pending
+                      type: 3
+                      points:
+                        - timestamp: 1735489200
+                          value: 12
+                      tags:
+                        - env:production
+                        - service:evalforge
+                    - metric: evalforge.suggestions.by_type
+                      type: 3
+                      points:
+                        - timestamp: 1735489200
+                          value: 5
+                      tags:
+                        - type:eval
+                        - env:production
+      responses:
+        '202':
+          description: Metrics accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    description: Any validation errors
+        '400':
+          description: Bad request - invalid payload
+        '403':
+          description: Forbidden - invalid API key
+        '429':
+          description: Rate limited
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: DD-API-KEY
+      description: Datadog API key from Secret Manager
+
+  schemas:
+    MetricPayload:
+      type: object
+      required:
+        - series
+      properties:
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricSeries'
+          description: List of metric series to submit
+
+    MetricSeries:
+      type: object
+      required:
+        - metric
+        - type
+        - points
+      properties:
+        metric:
+          type: string
+          description: Metric name
+          example: evalforge.suggestions.pending
+          enum:
+            - evalforge.suggestions.pending
+            - evalforge.suggestions.approved
+            - evalforge.suggestions.rejected
+            - evalforge.suggestions.total
+            - evalforge.suggestions.by_type
+            - evalforge.suggestions.by_severity
+            - evalforge.coverage.improvement
+        type:
+          type: integer
+          description: Metric type (3 = gauge)
+          example: 3
+          enum:
+            - 3
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricPoint'
+          minItems: 1
+          maxItems: 1
+          description: Single data point (current value)
+        tags:
+          type: array
+          items:
+            type: string
+          description: Metric tags for filtering
+          example:
+            - env:production
+            - service:evalforge
+            - type:eval
+
+    MetricPoint:
+      type: object
+      required:
+        - timestamp
+        - value
+      properties:
+        timestamp:
+          type: integer
+          description: Unix timestamp in seconds
+          example: 1735489200
+        value:
+          type: number
+          format: float
+          description: Metric value
+          example: 12.0
+
+# EvalForge Custom Metrics Reference
+#
+# Metric: evalforge.suggestions.pending
+# Type: Gauge
+# Tags: env, service
+# Description: Count of suggestions awaiting approval
+#
+# Metric: evalforge.suggestions.approved
+# Type: Gauge
+# Tags: env, service
+# Description: Count of approved suggestions
+#
+# Metric: evalforge.suggestions.rejected
+# Type: Gauge
+# Tags: env, service
+# Description: Count of rejected suggestions
+#
+# Metric: evalforge.suggestions.by_type
+# Type: Gauge
+# Tags: type (eval|guardrail|runbook), env, service
+# Description: Count of pending suggestions by type
+#
+# Metric: evalforge.suggestions.by_severity
+# Type: Gauge
+# Tags: severity (low|medium|high|critical), env, service
+# Description: Count of pending suggestions by severity
+#
+# Metric: evalforge.coverage.improvement
+# Type: Gauge
+# Tags: env, service
+# Description: Percentage of failures with approved eval coverage
