@@ -8,8 +8,8 @@ info:
     receive Slack notifications, and export approved artifacts in CI-ready formats.
 
 servers:
-  - url: /
-    description: Cloud Run deployment
+  - url: /approval
+    description: Cloud Run deployment (approval workflow routes under /approval prefix)
 
 security:
   - ApiKeyAuth: []
@@ -153,18 +153,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApprovalResponse"
-        "400":
-          description: Missing required reason field
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
           description: Suggestion is not in pending state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Missing or invalid reason field (Pydantic validation error)
           content:
             application/json:
               schema:
@@ -428,8 +428,13 @@ components:
     VersionHistoryEntry:
       type: object
       properties:
-        status:
+        new_status:
           type: string
+          description: The status after this transition
+        previous_status:
+          type: string
+          nullable: true
+          description: The status before this transition (null for initial state)
         timestamp:
           type: string
           format: date-time

@@ -159,15 +159,16 @@ def export_pytest(suggestion: dict[str, Any]) -> str:
     # Build assertion code
     assertion_lines = []
     for req in required:
-        # Escape quotes in assertion text
-        escaped_req = req.replace('"', '\\"')
+        # Use repr() to properly escape all special characters (backslashes, quotes, newlines)
+        # Then strip the outer quotes since we'll add our own
+        escaped_req = repr(req)[1:-1]
         assertion_lines.append(
             f'    # Required: {escaped_req}\n'
             f'    assert "{escaped_req}" in response or validate_requirement(response, "{escaped_req}")'
         )
 
     for forb in forbidden:
-        escaped_forb = forb.replace('"', '\\"')
+        escaped_forb = repr(forb)[1:-1]
         assertion_lines.append(
             f'    # Forbidden: {escaped_forb}\n'
             f'    assert "{escaped_forb}" not in response'
@@ -177,8 +178,10 @@ def export_pytest(suggestion: dict[str, Any]) -> str:
         assertion_lines.append("    assert response is not None  # Basic validation")
 
     assertions_code = "\n".join(assertion_lines)
-    escaped_prompt = prompt.replace('"""', '\\"\\"\\"')
-    escaped_title = title.replace('"', '\\"')
+    # Properly escape prompt for triple-quoted strings (escape backslashes first, then quotes)
+    escaped_prompt = prompt.replace('\\', '\\\\').replace('"""', '\\"\\"\\"')
+    # Use repr() for title to handle all special characters
+    escaped_title = repr(title)[1:-1]
 
     # Generate Python code
     code = f'''"""Auto-generated pytest test for: {escaped_title}

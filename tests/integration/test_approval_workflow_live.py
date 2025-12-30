@@ -22,6 +22,13 @@ pytestmark = pytest.mark.skipif(
     reason="Live tests require RUN_LIVE_TESTS=1"
 )
 
+# Helper to check if Slack webhook is configured
+SLACK_CONFIGURED = bool(os.getenv("SLACK_WEBHOOK_URL"))
+requires_slack = pytest.mark.skipif(
+    not SLACK_CONFIGURED,
+    reason="Slack webhook tests require SLACK_WEBHOOK_URL to be configured"
+)
+
 
 @pytest.fixture(scope="module")
 def api_key():
@@ -673,6 +680,7 @@ class TestWebhookNotificationUS5:
         response = client.post("/approval/webhooks/test")
         assert response.status_code == 401
 
+    @requires_slack
     def test_webhook_test_endpoint_sends_to_slack(self, client, api_key):
         """Test webhook test actually sends a message to Slack.
 
@@ -690,6 +698,7 @@ class TestWebhookNotificationUS5:
         assert data["status"] == "sent"
         assert "sent successfully" in data["message"].lower()
 
+    @requires_slack
     def test_webhook_test_endpoint_with_custom_message(self, client, api_key):
         """Test webhook test sends custom message to Slack."""
         response = client.post(
