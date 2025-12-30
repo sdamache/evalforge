@@ -74,15 +74,15 @@
 
 ### Live Integration Test for US2
 
-- [ ] T020 [US2] Create live integration test for approval action in tests/integration/test_approval_action_live.py
+- [x] T020 [US2] Create live integration test for approval action in tests/integration/test_approval_action_live.py
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] Add HTTP connection configuration for Approval API to docs/app-builder-setup.md
-- [ ] T022 [US2] Add approve button row action configuration to docs/app-builder-setup.md
-- [ ] T023 [US2] Add reject button row action configuration to docs/app-builder-setup.md
-- [ ] T024 [US2] Add success/error toast notification configuration to docs/app-builder-setup.md
-- [ ] T025 [US2] Document table refresh after action in docs/app-builder-setup.md
+- [x] T021 [US2] Add HTTP connection configuration for Approval API to docs/app-builder-setup.md
+- [x] T022 [US2] Add approve button row action configuration to docs/app-builder-setup.md
+- [x] T023 [US2] Add reject button row action configuration to docs/app-builder-setup.md
+- [x] T024 [US2] Add success/error toast notification configuration to docs/app-builder-setup.md
+- [x] T025 [US2] Document table refresh after action in docs/app-builder-setup.md
 
 **Checkpoint**: Approve/reject buttons work; status updates within 3 seconds
 
