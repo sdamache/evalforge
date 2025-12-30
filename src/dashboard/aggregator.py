@@ -95,6 +95,19 @@ def aggregate_suggestion_counts(
         counts.by_type = type_counts
         counts.by_severity = severity_counts
 
+        # For approved suggestions, get type breakdown (needed for coverage calculation)
+        approved_query = collection_ref.where(filter=FieldFilter("status", "==", SuggestionStatus.APPROVED.value))
+        approved_docs = approved_query.stream()
+
+        approved_type_counts = {t.value: 0 for t in SuggestionType}
+        for doc in approved_docs:
+            data = doc.to_dict()
+            suggestion_type = data.get("type", SuggestionType.EVAL.value)
+            if suggestion_type in approved_type_counts:
+                approved_type_counts[suggestion_type] += 1
+
+        counts.approved_by_type = approved_type_counts
+
         # Get total failures count from failure_patterns collection for coverage calculation
         # This is the denominator for coverage improvement percentage
         try:
@@ -117,6 +130,7 @@ def aggregate_suggestion_counts(
                 "total": counts.total,
                 "by_type": counts.by_type,
                 "by_severity": counts.by_severity,
+                "approved_by_type": counts.approved_by_type,
                 "total_failures": counts.total_failures,
             },
         )

@@ -79,6 +79,7 @@ class SuggestionCounts:
         rejected: Count of rejected suggestions.
         by_type: Count of pending suggestions by type.
         by_severity: Count of pending suggestions by severity.
+        approved_by_type: Count of approved suggestions by type (for coverage calc).
         total_failures: Total number of failures (for coverage calculation).
     """
     pending: int = 0
@@ -94,6 +95,11 @@ class SuggestionCounts:
         Severity.MEDIUM.value: 0,
         Severity.HIGH.value: 0,
         Severity.CRITICAL.value: 0,
+    })
+    approved_by_type: dict[str, int] = field(default_factory=lambda: {
+        SuggestionType.EVAL.value: 0,
+        SuggestionType.GUARDRAIL.value: 0,
+        SuggestionType.RUNBOOK.value: 0,
     })
     total_failures: int = 0
 
@@ -112,6 +118,6 @@ class SuggestionCounts:
         """
         if self.total_failures == 0:
             return 0.0
-        # Only count approved evals (not guardrails or runbooks)
-        approved_evals = self.by_type.get(SuggestionType.EVAL.value, 0)
+        # Only count APPROVED evals (not pending, not guardrails or runbooks)
+        approved_evals = self.approved_by_type.get(SuggestionType.EVAL.value, 0)
         return (approved_evals / self.total_failures) * 100
