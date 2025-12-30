@@ -27,7 +27,7 @@ Build an interactive Datadog dashboard for ML engineers to view and approve/reje
 **Project Type**: Single (metrics publisher service)
 **Performance Goals**:
 - Dashboard load: <2 seconds
-- Approve/reject action: <3 seconds
+- Approve/reject action: < 3 seconds
 - Metrics refresh: every 60 seconds
 
 **Constraints**:
