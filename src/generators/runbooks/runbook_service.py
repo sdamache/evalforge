@@ -79,15 +79,25 @@ def _sanitize_list(items: List[str], *, max_length: int = 200) -> List[str]:
 
 
 def _extract_lineage(suggestion: Dict[str, Any]) -> Tuple[List[str], List[str]]:
+    """Extract trace_ids and pattern_ids from source_traces.
+
+    Handles both dict entries (standard format) and string entries (legacy/test data).
+    """
     trace_ids: List[str] = []
     pattern_ids: List[str] = []
     for st in suggestion.get("source_traces", []) or []:
-        trace_id = st.get("trace_id")
-        pattern_id = st.get("pattern_id")
-        if trace_id:
-            trace_ids.append(trace_id)
-        if pattern_id:
-            pattern_ids.append(pattern_id)
+        # Handle legacy string format (just trace_id as string)
+        if isinstance(st, str):
+            trace_ids.append(st)
+            continue
+        # Standard dict format
+        if isinstance(st, dict):
+            trace_id = st.get("trace_id")
+            pattern_id = st.get("pattern_id")
+            if trace_id:
+                trace_ids.append(trace_id)
+            if pattern_id:
+                pattern_ids.append(pattern_id)
     return trace_ids, pattern_ids
 
 
