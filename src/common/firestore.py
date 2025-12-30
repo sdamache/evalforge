@@ -168,3 +168,15 @@ def runbook_errors_collection(prefix: Optional[str] = None) -> str:
     """Get the runbook generator errors collection name."""
     prefix = prefix or get_collection_prefix()
     return f"{prefix}runbook_errors"
+
+
+def guardrail_runs_collection(prefix: Optional[str] = None) -> str:
+    """Get the guardrail generator run summaries collection name."""
+    prefix = prefix or get_collection_prefix()
+    return f"{prefix}guardrail_runs"
+
+
+def guardrail_errors_collection(prefix: Optional[str] = None) -> str:
+    """Get the guardrail generator errors collection name."""
+    prefix = prefix or get_collection_prefix()
+    return f"{prefix}guardrail_errors"

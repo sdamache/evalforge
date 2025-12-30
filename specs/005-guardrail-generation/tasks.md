@@ -61,7 +61,7 @@
 
 ### Live Integration Test for User Story 1
 
-- [ ] T008 [US1] Create live integration test file at tests/integration/test_guardrail_generator_live.py:
+- [x] T008 [US1] Create live integration test file at tests/integration/test_guardrail_generator_live.py:
   - Guard with `RUN_LIVE_TESTS=1` environment check (skip if not set)
   - Create test fixtures: `_create_suggestion_doc()`, `_create_failure_pattern_doc()`
   - Use unique collection prefix for test isolation
@@ -72,24 +72,24 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Create firestore_repository.py by copying from eval_tests/firestore_repository.py and adapting:
+- [x] T009 [US1] Create firestore_repository.py by copying from eval_tests/firestore_repository.py and adapting:
   - Query `type=="guardrail"` instead of `type=="eval"`
   - Write to `suggestion_content.guardrail` instead of `suggestion_content.eval_test`
   - Use collections: `guardrail_runs`, `guardrail_errors`
   - Load failure patterns for canonical source selection
   - File: src/generators/guardrails/firestore_repository.py
-- [ ] T010 [US1] Create guardrail_service.py by copying from eval_tests/eval_test_service.py and adapting:
+- [x] T010 [US1] Create guardrail_service.py by copying from eval_tests/eval_test_service.py and adapting:
   - Use guardrail prompt template
   - Add failure-type-to-guardrail-type mapping lookup
   - Implement canonical source selection (highest confidence, tie-breaker: most recent)
   - Implement cost budget enforcement with template fallback
   - Implement overwrite protection (edit_source flag)
   - File: src/generators/guardrails/guardrail_service.py
-- [ ] T011 [US1] Add template fallback method `_template_needs_human_input()` to guardrail_service.py:
+- [x] T011 [US1] Add template fallback method `_template_needs_human_input()` to guardrail_service.py:
   - Generate `needs_human_input` draft when Gemini unavailable or context insufficient
   - Include placeholder configuration based on guardrail type
   - Document reason for fallback in generator_meta
-- [ ] T012 [US1] Create main.py FastAPI service by copying from eval_tests/main.py and adapting:
+- [x] T012 [US1] Create main.py FastAPI service by copying from eval_tests/main.py and adapting:
   - Change endpoint prefix to `/guardrails`
   - POST /guardrails/run-once (batch generation)
   - POST /guardrails/generate/{suggestionId} (single generation)
