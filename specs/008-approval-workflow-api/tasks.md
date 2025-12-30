@@ -79,16 +79,16 @@
 
 ### Live Integration Test (minimal mode)
 
-- [ ] T017 [P] [US3] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
+- [x] T017 [P] [US3] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
   creates and approves a test Suggestion, calls GET /suggestions/{id}/export for each format (deepeval, pytest, yaml), validates JSON is parseable, Python is syntactically valid (`ast.parse`), YAML is loadable (`yaml.safe_load`)
 
 ### Implementation
 
-- [ ] T018 [P] [US3] Implement DeepEval JSON exporter in `src/api/approval/exporters.py` (per DeepEval schema from research.md: input, actual_output, expected_output, context, retrieval_context)
-- [ ] T019 [P] [US3] Implement Pytest exporter in `src/api/approval/exporters.py` (generate syntactically valid Python test code)
-- [ ] T020 [P] [US3] Implement YAML exporter in `src/api/approval/exporters.py` (generate valid YAML configuration)
-- [ ] T021 [US3] Implement `export_suggestion()` in `src/api/approval/service.py` (validate approved status, select exporter by format, validate output before returning)
-- [ ] T022 [US3] Implement `GET /suggestions/{suggestionId}/export` endpoint in `src/api/approval/router.py` (per OpenAPI contract, 409 if not approved, 422 if content missing)
+- [x] T018 [P] [US3] Implement DeepEval JSON exporter in `src/api/approval/exporters.py` (per DeepEval schema from research.md: input, actual_output, expected_output, context, retrieval_context)
+- [x] T019 [P] [US3] Implement Pytest exporter in `src/api/approval/exporters.py` (generate syntactically valid Python test code)
+- [x] T020 [P] [US3] Implement YAML exporter in `src/api/approval/exporters.py` (generate valid YAML configuration)
+- [x] T021 [US3] Implement `export_suggestion()` in `src/api/approval/service.py` (validate approved status, select exporter by format, validate output before returning)
+- [x] T022 [US3] Implement `GET /suggestions/{suggestionId}/export` endpoint in `src/api/approval/router.py` (per OpenAPI contract, 409 if not approved, 422 if content missing)
 
 **Checkpoint**: Export functionality complete for all three formats.
 

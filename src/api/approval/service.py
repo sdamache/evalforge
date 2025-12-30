@@ -20,8 +20,21 @@ from src.api.approval.repository import (
     count_pending_suggestions,
     get_last_approval_timestamp,
 )
+from src.api.approval.exporters import (
+    export_suggestion as exporter_export,
+    ContentMissingError,
+    ExportError,
+)
 from src.api.approval.webhook import send_approval_notification
 from src.common.logging import get_logger, log_audit
+
+
+class SuggestionNotApprovedError(Exception):
+    """Raised when trying to export a non-approved suggestion."""
+
+    def __init__(self, current_status: str):
+        self.current_status = current_status
+        super().__init__(f"Suggestion is not approved (current: {current_status})")
 
 logger = get_logger(__name__)
 
@@ -203,3 +216,56 @@ class ApprovalService:
             "pendingCount": pending_count,
             "lastApprovalAt": last_approval,
         }
+
+    def export_suggestion(
+        self,
+        suggestion_id: str,
+        format: str = "deepeval",
+    ) -> tuple[str, str]:
+        """Export an approved suggestion in the requested format.
+
+        Args:
+            suggestion_id: The suggestion ID to export.
+            format: Export format (deepeval, pytest, yaml).
+
+        Returns:
+            Tuple of (content, content_type).
+
+        Raises:
+            SuggestionNotFoundError: If suggestion doesn't exist.
+            SuggestionNotApprovedError: If suggestion is not approved.
+            ContentMissingError: If suggestion_content is missing required fields.
+            ExportError: If export generation fails.
+        """
+        # Fetch the suggestion
+        suggestion = get_suggestion(self.client, suggestion_id)
+        if not suggestion:
+            raise SuggestionNotFoundError(f"Suggestion {suggestion_id} not found")
+
+        # Validate suggestion is approved
+        status = suggestion.get("status", "unknown")
+        if status != "approved":
+            raise SuggestionNotApprovedError(status)
+
+        # Generate export
+        content, content_type = exporter_export(suggestion, format)
+
+        # Log export action
+        log_audit(
+            logger,
+            actor="api",
+            action="export_suggestion",
+            target=suggestion_id,
+            format=format,
+        )
+
+        logger.info(
+            "Suggestion exported",
+            extra={
+                "suggestion_id": suggestion_id,
+                "format": format,
+                "content_type": content_type,
+            }
+        )
+
+        return content, content_type

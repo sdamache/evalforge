@@ -312,3 +312,186 @@ class TestRejectionWorkflowUS2:
 
         finally:
             cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+
+# =============================================================================
+# User Story 3: Export Approved Suggestions Tests
+# =============================================================================
+
+
+class TestExportWorkflowUS3:
+    """Live integration tests for User Story 3: Export Approved Suggestions."""
+
+    def test_export_deepeval_format(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test exporting an approved suggestion in DeepEval JSON format.
+
+        Creates a pending suggestion, approves it, exports as deepeval,
+        validates JSON is parseable and matches DeepEval schema.
+        """
+        import json
+
+        # Setup: Create and approve a suggestion
+        create_test_suggestion(firestore_client, test_suggestion_id)
+
+        try:
+            # First approve it
+            approve_response = client.post(
+                f"/suggestions/{test_suggestion_id}/approve",
+                headers={"X-API-Key": api_key},
+                json={"notes": "Approving for export test"},
+            )
+            assert approve_response.status_code == 200
+
+            # Export as deepeval
+            response = client.get(
+                f"/suggestions/{test_suggestion_id}/export",
+                headers={"X-API-Key": api_key},
+                params={"format": "deepeval"},
+            )
+
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+            assert "application/json" in response.headers["content-type"]
+
+            # Validate JSON is parseable
+            data = json.loads(response.text)
+            assert isinstance(data, list)
+            assert len(data) >= 1
+
+            # Validate DeepEval schema - must have input and actual_output
+            test_case = data[0]
+            assert "input" in test_case
+            assert "actual_output" in test_case
+            assert test_case["input"] == "Test prompt"
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+    def test_export_pytest_format(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test exporting an approved suggestion in Pytest format.
+
+        Creates and approves a suggestion, exports as pytest,
+        validates Python is syntactically valid.
+        """
+        import ast
+
+        # Setup: Create and approve a suggestion
+        create_test_suggestion(firestore_client, test_suggestion_id)
+
+        try:
+            # First approve it
+            approve_response = client.post(
+                f"/suggestions/{test_suggestion_id}/approve",
+                headers={"X-API-Key": api_key},
+                json={},
+            )
+            assert approve_response.status_code == 200
+
+            # Export as pytest
+            response = client.get(
+                f"/suggestions/{test_suggestion_id}/export",
+                headers={"X-API-Key": api_key},
+                params={"format": "pytest"},
+            )
+
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+            assert "text/x-python" in response.headers["content-type"]
+
+            # Validate Python is syntactically valid
+            code = response.text
+            ast.parse(code)  # Raises SyntaxError if invalid
+
+            # Check it contains expected elements
+            assert "def test_" in code
+            assert "Test prompt" in code
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+    def test_export_yaml_format(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test exporting an approved suggestion in YAML format.
+
+        Creates and approves a suggestion, exports as yaml,
+        validates YAML is loadable.
+        """
+        import yaml
+
+        # Setup: Create and approve a suggestion
+        create_test_suggestion(firestore_client, test_suggestion_id)
+
+        try:
+            # First approve it
+            approve_response = client.post(
+                f"/suggestions/{test_suggestion_id}/approve",
+                headers={"X-API-Key": api_key},
+                json={},
+            )
+            assert approve_response.status_code == 200
+
+            # Export as yaml
+            response = client.get(
+                f"/suggestions/{test_suggestion_id}/export",
+                headers={"X-API-Key": api_key},
+                params={"format": "yaml"},
+            )
+
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+            assert "application/x-yaml" in response.headers["content-type"]
+
+            # Validate YAML is loadable
+            data = yaml.safe_load(response.text)
+            assert "evalforge_test" in data
+            assert data["evalforge_test"]["metadata"]["suggestion_id"] == test_suggestion_id
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+    def test_export_not_approved_returns_409(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test exporting a non-approved suggestion returns 409."""
+        # Setup: Create a pending suggestion (not approved)
+        create_test_suggestion(firestore_client, test_suggestion_id, status="pending")
+
+        try:
+            response = client.get(
+                f"/suggestions/{test_suggestion_id}/export",
+                headers={"X-API-Key": api_key},
+                params={"format": "deepeval"},
+            )
+
+            assert response.status_code == 409
+            assert "not approved" in response.json()["detail"].lower()
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+    def test_export_nonexistent_returns_404(self, client, api_key):
+        """Test exporting a non-existent suggestion returns 404."""
+        response = client.get(
+            "/suggestions/nonexistent_id_12345/export",
+            headers={"X-API-Key": api_key},
+            params={"format": "deepeval"},
+        )
+        assert response.status_code == 404
