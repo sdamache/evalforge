@@ -151,3 +151,4 @@ As a platform lead, I want approval and rejection events to trigger webhook noti
 - Bulk approval/rejection operations
 - Custom webhook payload templates
 - Export format customization beyond the three standard formats
+- Interactive Slack approvals (approve/reject via Slack buttons) - current implementation is notification-only; interactive approvals require full Slack App with OAuth and Events API

@@ -94,3 +94,4 @@ tests/
 | Bulk approval/rejection | Not in spec scope | Can be added later without schema changes |
 | Webhook retry queue | Complexity for hackathon | Fire-and-forget with logging acceptable; failures logged for manual retry |
 | Export to GitHub/CI | Out of scope | Export returns file content; integration is downstream concern |
+| Interactive Slack Approvals | Requires full Slack App (not just webhook) | Current: one-way notifications only. Future: approve/reject via Slack buttons. Requires Slack App manifest, OAuth, Slack Events API endpoint to receive button clicks |
