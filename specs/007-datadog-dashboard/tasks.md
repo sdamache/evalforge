@@ -96,9 +96,13 @@
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Add evalforge.suggestions.generated metric to src/dashboard/metrics_builder.py
-- [ ] T027 [P] [US3] Add evalforge.suggestions.approved_daily metric to src/dashboard/metrics_builder.py
-- [ ] T028 [US3] Add timeseries widget configuration to docs/app-builder-setup.md
+> **Note**: Trend visualization uses existing contract metrics with Datadog's time rollup functions:
+> - Generated trend: `evalforge.suggestions.total` gauge over time
+> - Approved trend: `evalforge.suggestions.approved` gauge over time
+
+- [x] T026 [P] [US3] Verify evalforge.suggestions.total metric published for trend chart (implemented in metrics_publisher.py)
+- [x] T027 [P] [US3] Verify evalforge.suggestions.approved metric published for trend chart (implemented in metrics_publisher.py)
+- [x] T028 [US3] Add timeseries widget configuration to docs/app-builder-setup.md
 
 **Checkpoint**: Trend chart shows generated vs approved over time
 
@@ -112,8 +116,8 @@
 
 ### Implementation for User Story 4
 
-- [ ] T029 [P] [US4] Ensure evalforge.suggestions.by_type metric includes all types in src/dashboard/metrics_builder.py
-- [ ] T030 [US4] Add pie chart widget configuration to docs/app-builder-setup.md
+- [x] T029 [P] [US4] Ensure evalforge.suggestions.by_type metric includes all types (done in datadog_client.py)
+- [x] T030 [US4] Add pie chart widget configuration to docs/app-builder-setup.md
 
 **Checkpoint**: Pie chart shows type distribution
 
@@ -127,8 +131,8 @@
 
 ### Implementation for User Story 5
 
-- [ ] T031 [P] [US5] Add evalforge.coverage.improvement metric calculation to src/dashboard/metrics_builder.py
-- [ ] T032 [US5] Add coverage query value widget configuration to docs/app-builder-setup.md
+- [x] T031 [P] [US5] Add evalforge.coverage.improvement metric calculation (done in datadog_client.py)
+- [x] T032 [US5] Add coverage query value widget configuration to docs/app-builder-setup.md
 
 **Checkpoint**: Coverage metric displays correctly
 
