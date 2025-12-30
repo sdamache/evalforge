@@ -9,9 +9,11 @@ Endpoints (see specs/005-guardrail-generation/contracts/guardrail-generator-open
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import Response
 
 from src.common.config import load_guardrail_generator_settings
 from src.common.logging import get_logger
@@ -28,6 +30,14 @@ from src.generators.guardrails.models import (
     SuggestionStatus,
     TriggeredBy,
 )
+from src.generators.guardrails.yaml_export import guardrail_to_yaml
+
+
+class ExportFormat(str, Enum):
+    """Supported export formats for guardrail drafts."""
+
+    JSON = "json"
+    YAML = "yaml"
 
 VERSION = "0.1.0"
 
@@ -168,10 +178,17 @@ def generate_one(suggestion_id: str, body: GuardrailGenerateRequest | None = Non
 
 
 @app.get("/guardrails/{suggestion_id}")
-def get_guardrail(suggestion_id: str):
+def get_guardrail(
+    suggestion_id: str,
+    format: ExportFormat = Query(
+        default=ExportFormat.JSON,
+        description="Output format: json (default) or yaml for Datadog AI Guard",
+    ),
+):
     """Get the current guardrail draft plus suggestion approval metadata.
 
     Returns the guardrail draft with full lineage information for reviewer approval.
+    Use format=yaml for Datadog AI Guard compatible output.
     """
     try:
         service = get_service()
@@ -185,6 +202,18 @@ def get_guardrail(suggestion_id: str):
         if guardrail_payload is None:
             raise HTTPException(status_code=404, detail="not found")
 
+        guardrail = GuardrailDraft.model_validate(guardrail_payload)
+
+        # T018: YAML export support for Datadog AI Guard
+        if format == ExportFormat.YAML:
+            yaml_content = guardrail_to_yaml(guardrail)
+            return Response(
+                content=yaml_content,
+                media_type="application/x-yaml",
+                headers={"Content-Disposition": f"inline; filename={suggestion_id}.yaml"},
+            )
+
+        # Default JSON response with full context
         approval_payload = suggestion.get("approval_metadata")
         approval_metadata = (
             ApprovalMetadata.model_validate(approval_payload)
@@ -196,7 +225,7 @@ def get_guardrail(suggestion_id: str):
             suggestion_id=suggestion_id,
             suggestion_status=SuggestionStatus(suggestion.get("status", "pending")),
             approval_metadata=approval_metadata,
-            guardrail=GuardrailDraft.model_validate(guardrail_payload),
+            guardrail=guardrail,
         )
         return response.model_dump(mode="json")
     except HTTPException:

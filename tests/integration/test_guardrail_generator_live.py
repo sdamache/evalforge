@@ -22,6 +22,7 @@ from datetime import datetime, UTC
 from uuid import uuid4
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
 from src.common.config import load_firestore_config
@@ -661,6 +662,94 @@ def test_get_endpoint_returns_full_context_for_review(
         assert source.get("suggestion_id") == suggestion_id
         assert source.get("trace_ids") == [trace_id]
         assert source.get("pattern_ids") == [f"pattern_{trace_id}"]
+
+    finally:
+        # Cleanup
+        firestore_client.collection(suggestions_coll).document(suggestion_id).delete()
+        firestore_client.collection(patterns_coll).document(trace_id).delete()
+
+
+def test_yaml_export_format(
+    firestore_client,
+    test_prefix,
+    client,
+):
+    """
+    US3 Test: Verify YAML export format for Datadog AI Guard compatibility.
+
+    Success criteria:
+    - Request with ?format=yaml returns valid YAML
+    - Content-Type is application/x-yaml
+    - YAML structure includes rule_name, type, configuration, description
+    - YAML excludes internal metadata (generator_meta, source)
+    """
+    suggestions_coll = suggestions_collection(test_prefix)
+    patterns_coll = failure_patterns_collection(test_prefix)
+
+    trace_id = f"trace_{uuid4().hex[:8]}"
+    suggestion_id = f"sugg_{uuid4().hex[:8]}"
+
+    try:
+        # Setup
+        firestore_client.collection(patterns_coll).document(trace_id).set(
+            _create_failure_pattern_doc(
+                trace_id=trace_id,
+                failure_type="hallucination",
+                input_pattern="What is the capital of France?",
+            )
+        )
+        firestore_client.collection(suggestions_coll).document(suggestion_id).set(
+            _create_suggestion_doc(
+                suggestion_id=suggestion_id,
+                trace_id=trace_id,
+                failure_type="hallucination",
+            )
+        )
+
+        # Generate a draft first
+        gen_resp = client.post(
+            f"/guardrails/generate/{suggestion_id}",
+            json={"triggeredBy": "manual"},
+        )
+        assert gen_resp.status_code == 200, gen_resp.text
+
+        # Request YAML format
+        yaml_resp = client.get(f"/guardrails/{suggestion_id}?format=yaml")
+        assert yaml_resp.status_code == 200, yaml_resp.text
+
+        # Verify Content-Type
+        content_type = yaml_resp.headers.get("content-type", "")
+        assert "yaml" in content_type.lower(), (
+            f"Expected YAML content type, got {content_type}"
+        )
+
+        # Parse YAML
+        yaml_content = yaml_resp.text
+        parsed = yaml.safe_load(yaml_content)
+        assert isinstance(parsed, dict), "Expected YAML to parse as dict"
+
+        # Verify required fields present
+        assert parsed.get("rule_name"), "Expected rule_name in YAML"
+        assert parsed.get("type"), "Expected type in YAML"
+        assert parsed.get("description"), "Expected description in YAML"
+        assert parsed.get("justification"), "Expected justification in YAML"
+        assert "configuration" in parsed, "Expected configuration in YAML"
+
+        # Verify guardrail type for hallucination
+        assert parsed.get("type") == "validation_rule", (
+            f"Expected validation_rule, got {parsed.get('type')}"
+        )
+
+        # Verify internal metadata excluded
+        assert "generator_meta" not in parsed, "generator_meta should not be in YAML"
+        assert "source" not in parsed, "source should not be in YAML export"
+        assert "guardrail_id" not in parsed, "guardrail_id should not be in YAML"
+
+        # Also test JSON format still works
+        json_resp = client.get(f"/guardrails/{suggestion_id}?format=json")
+        assert json_resp.status_code == 200
+        json_body = json_resp.json()
+        assert json_body.get("suggestion_id") == suggestion_id
 
     finally:
         # Cleanup

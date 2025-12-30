@@ -140,7 +140,7 @@
 
 ### Live Integration Test for User Story 3
 
-- [ ] T017 [US3] Add live test `test_yaml_export_format()` to tests/integration/test_guardrail_generator_live.py:
+- [x] T017 [US3] Add live test `test_yaml_export_format()` to tests/integration/test_guardrail_generator_live.py:
   - Generate a guardrail draft
   - Request with `?format=yaml` query param
   - Verify YAML output is valid
@@ -148,11 +148,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Add YAML export support to GET /guardrails/{suggestionId} endpoint in main.py:
+- [x] T018 [US3] Add YAML export support to GET /guardrails/{suggestionId} endpoint in main.py:
   - Accept `format` query parameter (json | yaml, default: json)
   - Use PyYAML to convert GuardrailDraft to YAML
   - Set appropriate Content-Type header (application/json or application/x-yaml)
-- [ ] T019 [US3] Create yaml_export.py utility for Datadog AI Guard compatible output in src/generators/guardrails/yaml_export.py:
+- [x] T019 [US3] Create yaml_export.py utility for Datadog AI Guard compatible output in src/generators/guardrails/yaml_export.py:
   - Convert GuardrailDraft to Datadog-compatible YAML structure
   - Include rule_name, type, configuration, description
   - Exclude internal metadata (generator_meta, source)
