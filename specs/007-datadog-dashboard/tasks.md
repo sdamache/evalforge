@@ -47,20 +47,20 @@
 
 ### Live Integration Test for US1
 
-- [ ] T010 [US1] Create live integration test for metrics publisher in tests/integration/test_metrics_publisher_live.py
+- [x] T010 [US1] Create live integration test for metrics publisher in tests/integration/test_metrics_publisher_live.py
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implement aggregate_suggestion_counts() in src/dashboard/aggregator.py
-- [ ] T012 [P] [US1] Implement build_metrics_payload() in src/dashboard/metrics_builder.py
-- [ ] T013 [US1] Implement submit_metrics() in src/dashboard/datadog_client.py
-- [ ] T014 [US1] Create metrics publisher Cloud Function entry point in src/dashboard/metrics_publisher.py
-- [ ] T015 [US1] Add Cloud Function deployment script in scripts/deploy_metrics_publisher.sh
-- [ ] T016 [US1] Create Cloud Scheduler job configuration in infra/scheduler.yaml
-- [ ] T017 [US1] Create App Builder setup guide in docs/app-builder-setup.md
-- [ ] T018 [US1] Add pending count query value widget instructions to docs/app-builder-setup.md
-- [ ] T019 [US1] Add approval queue table component instructions to docs/app-builder-setup.md
-- [ ] T019a [US1] Configure table sorting by severity (descending) then created_at (ascending) in docs/app-builder-setup.md
+- [x] T011 [P] [US1] Implement aggregate_suggestion_counts() in src/dashboard/aggregator.py (done in T008)
+- [x] T012 [P] [US1] Implement build_metrics_payload() in src/dashboard/metrics_builder.py (integrated in datadog_client)
+- [x] T013 [US1] Implement submit_metrics() in src/dashboard/datadog_client.py (done in T006)
+- [x] T014 [US1] Create metrics publisher Cloud Function entry point in src/dashboard/metrics_publisher.py
+- [x] T015 [US1] Add Cloud Function deployment script in scripts/deploy_metrics_publisher.sh
+- [x] T016 [US1] Create Cloud Scheduler job configuration in infra/scheduler.yaml
+- [x] T017 [US1] Create App Builder setup guide in docs/app-builder-setup.md
+- [x] T018 [US1] Add pending count query value widget instructions to docs/app-builder-setup.md
+- [x] T019 [US1] Add approval queue table component instructions to docs/app-builder-setup.md
+- [x] T019a [US1] Configure table sorting by severity (descending) then created_at (ascending) in docs/app-builder-setup.md
 
 **Checkpoint**: Metrics appear in Datadog; App Builder shows pending suggestions table sorted by priority
 

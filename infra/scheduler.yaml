@@ -1,0 +1,55 @@
+# Cloud Scheduler Configuration for EvalForge Metrics Publisher
+# =============================================================================
+# This file documents the Cloud Scheduler job configuration.
+# The actual job is created by scripts/deploy_metrics_publisher.sh
+#
+# To create manually:
+#   gcloud scheduler jobs create http evalforge-metrics-publisher-trigger \
+#     --location=us-central1 \
+#     --project=konveyn2ai \
+#     --schedule="* * * * *" \
+#     --uri="<function-url>" \
+#     --http-method=POST \
+#     --oidc-service-account-email=evalforge-metrics-sa@konveyn2ai.iam.gserviceaccount.com \
+#     --time-zone=UTC \
+#     --attempt-deadline=60s
+# =============================================================================
+
+apiVersion: cloudscheduler.cnrm.cloud.google.com/v1beta1
+kind: CloudSchedulerJob
+metadata:
+  name: evalforge-metrics-publisher-trigger
+  namespace: evalforge
+  labels:
+    managed-by: evalforge
+    service: metrics-publisher
+spec:
+  # Run every minute (60 seconds)
+  schedule: "* * * * *"
+  timeZone: "UTC"
+
+  # Target Cloud Function
+  httpTarget:
+    uri: "${FUNCTION_URL}"  # Populated by deployment script
+    httpMethod: POST
+    headers:
+      Content-Type: "application/json"
+
+    # Use OIDC token for authentication
+    oidcToken:
+      serviceAccountEmail: evalforge-metrics-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+
+  # Retry configuration
+  retryConfig:
+    retryCount: 3
+    minBackoffDuration: "5s"
+    maxBackoffDuration: "30s"
+    maxDoublings: 3
+
+  # Attempt deadline
+  attemptDeadline: "60s"
+
+  # Description
+  description: |
+    Triggers the EvalForge metrics publisher Cloud Function every 60 seconds.
+    Aggregates suggestion counts from Firestore and publishes to Datadog.
