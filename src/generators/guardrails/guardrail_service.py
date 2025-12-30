@@ -7,6 +7,7 @@ canonical source patterns, and generates actionable configurations.
 
 import hashlib
 import json
+import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -391,6 +392,8 @@ class GuardrailService:
                 status=GuardrailOutcomeStatus.ERROR, error_reason="not_found"
             )
 
+        # Use cancellation event to prevent background writes after timeout
+        cancel_event = threading.Event()
         executor = ThreadPoolExecutor(max_workers=1)
         try:
             future = executor.submit(
@@ -402,12 +405,24 @@ class GuardrailService:
                 force_overwrite=force_overwrite,
                 skip_if_already_has_draft=False,
                 remaining_budget=self.settings.cost_budget_usd_per_suggestion,
+                cancel_event=cancel_event,
             )
             try:
                 result = future.result(
                     timeout=self.settings.per_suggestion_timeout_sec
                 )
             except FuturesTimeoutError:
+                # Signal cancellation to prevent background writes
+                cancel_event.set()
+                logger.info(
+                    "guardrail_generation_timeout",
+                    extra={
+                        "event": "guardrail_generation_timeout",
+                        "run_id": run_id,
+                        "suggestion_id": suggestion_id,
+                        "timeout_sec": self.settings.per_suggestion_timeout_sec,
+                    },
+                )
                 result = GenerateResult(
                     status=GuardrailOutcomeStatus.ERROR,
                     error_reason="timeout",
@@ -436,8 +451,14 @@ class GuardrailService:
         force_overwrite: bool,
         skip_if_already_has_draft: bool,
         remaining_budget: float,
+        cancel_event: Optional[threading.Event] = None,
     ) -> GenerateResult:
-        """Generate guardrail draft for a single suggestion."""
+        """Generate guardrail draft for a single suggestion.
+
+        Args:
+            cancel_event: Optional threading.Event to check for cancellation.
+                          If set, aborts before API calls or writes.
+        """
         suggestion_id = suggestion.get("suggestion_id", "")
         existing_guardrail = (
             (suggestion.get("suggestion_content") or {}).get("guardrail")
@@ -591,6 +612,22 @@ class GuardrailService:
                 dry_run=dry_run,
             )
 
+        # Check for cancellation before expensive operations
+        if cancel_event is not None and cancel_event.is_set():
+            logger.info(
+                "guardrail_generation_cancelled",
+                extra={
+                    "event": "guardrail_generation_cancelled",
+                    "run_id": run_id,
+                    "suggestion_id": suggestion_id,
+                    "stage": "before_gemini_call",
+                },
+            )
+            return GenerateResult(
+                status=GuardrailOutcomeStatus.ERROR,
+                error_reason="cancelled",
+            )
+
         # Sanitize inputs and build prompt
         sanitized_suggestion, sanitized_pattern = self._sanitize_inputs(
             suggestion=suggestion, pattern=canonical
@@ -629,11 +666,13 @@ class GuardrailService:
                     "triggered_by": triggered_by.value,
                 },
             )
+            # Charge budget: API was called and returned (tokens consumed)
             return GenerateResult(
                 status=GuardrailOutcomeStatus.ERROR,
                 guardrail_type=guardrail_type.value,
                 error_reason="invalid_json",
                 error_record=error,
+                budget_charged_usd=self.settings.cost_budget_usd_per_suggestion,
             )
         except GeminiRateLimitError as exc:
             error = GuardrailError(
@@ -655,11 +694,13 @@ class GuardrailService:
                     "triggered_by": triggered_by.value,
                 },
             )
+            # Don't charge budget: rate limited before processing (no tokens consumed)
             return GenerateResult(
                 status=GuardrailOutcomeStatus.ERROR,
                 guardrail_type=guardrail_type.value,
                 error_reason="rate_limit",
                 error_record=error,
+                budget_charged_usd=0.0,
             )
         except (GeminiAPIError, GeminiClientError) as exc:
             error = GuardrailError(
@@ -681,11 +722,13 @@ class GuardrailService:
                     "triggered_by": triggered_by.value,
                 },
             )
+            # Charge budget conservatively: API call was attempted
             return GenerateResult(
                 status=GuardrailOutcomeStatus.ERROR,
                 guardrail_type=guardrail_type.value,
                 error_reason="vertex_error",
                 error_record=error,
+                budget_charged_usd=self.settings.cost_budget_usd_per_suggestion,
             )
         except Exception as exc:
             error = GuardrailError(
@@ -713,11 +756,18 @@ class GuardrailService:
                     "triggered_by": triggered_by.value,
                 },
             )
+            # Charge budget if API was called (response exists)
+            budget = (
+                self.settings.cost_budget_usd_per_suggestion
+                if "response" in locals()
+                else 0.0
+            )
             return GenerateResult(
                 status=GuardrailOutcomeStatus.ERROR,
                 guardrail_type=guardrail_type.value,
                 error_reason="schema_validation",
                 error_record=error,
+                budget_charged_usd=budget,
             )
 
         # T015: Validate configuration completeness (reject placeholder values)
@@ -800,6 +850,22 @@ class GuardrailService:
                 "triggered_by": triggered_by.value,
             },
         )
+
+        # Check for cancellation before Firestore write (in case Gemini completed during timeout)
+        if cancel_event is not None and cancel_event.is_set():
+            logger.info(
+                "guardrail_generation_cancelled",
+                extra={
+                    "event": "guardrail_generation_cancelled",
+                    "run_id": run_id,
+                    "suggestion_id": suggestion_id,
+                    "stage": "before_firestore_write",
+                },
+            )
+            return GenerateResult(
+                status=GuardrailOutcomeStatus.ERROR,
+                error_reason="cancelled",
+            )
 
         return self._persist_or_return(
             suggestion_id=suggestion_id,

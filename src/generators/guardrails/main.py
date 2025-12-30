@@ -43,6 +43,31 @@ VERSION = "0.1.0"
 
 logger = get_logger(__name__)
 
+
+def _snake_to_camel(s: str) -> str:
+    """Convert snake_case to camelCase."""
+    parts = s.split("_")
+    return parts[0] + "".join(p.title() for p in parts[1:])
+
+
+def _convert_keys_to_camel(data: dict) -> dict:
+    """Convert all dict keys from snake_case to camelCase."""
+    if data is None:
+        return None
+    result = {}
+    for key, value in data.items():
+        camel_key = _snake_to_camel(key)
+        if isinstance(value, dict):
+            result[camel_key] = _convert_keys_to_camel(value)
+        elif isinstance(value, list):
+            result[camel_key] = [
+                _convert_keys_to_camel(item) if isinstance(item, dict) else item
+                for item in value
+            ]
+        else:
+            result[camel_key] = value
+    return result
+
 app = FastAPI(
     title="Evalforge Guardrail Generator",
     description="Generates guardrail rule drafts from guardrail-type suggestions.",
@@ -249,7 +274,9 @@ def health():
         repository = service.repository
 
         backlog_pending = repository.get_pending_guardrail_suggestions_count()
-        last_run = repository.get_last_run_summary()
+        last_run_raw = repository.get_last_run_summary()
+        # Convert snake_case keys to camelCase for API contract compliance
+        last_run = _convert_keys_to_camel(last_run_raw) if last_run_raw else None
 
         return {
             "status": "ok",
