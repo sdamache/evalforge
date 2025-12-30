@@ -295,12 +295,15 @@ class RunbookService:
 
         executor = ThreadPoolExecutor(max_workers=1)
         try:
+            # Always generate with dry_run=True internally to prevent the thread
+            # from writing to Firestore if it completes after timeout.
+            # Persistence is handled below only for successful, non-timed-out results.
             future = executor.submit(
                 self._generate_for_suggestion,
                 suggestion=suggestion,
                 run_id=run_id,
                 triggered_by=triggered_by,
-                dry_run=dry_run,
+                dry_run=True,  # Always dry_run internally; persist below if successful
                 force_overwrite=force_overwrite,
                 skip_if_already_has_draft=False,
                 remaining_budget=self.settings.cost_budget_usd_per_suggestion,
@@ -321,6 +324,13 @@ class RunbookService:
                 )
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
+
+        # Persist only after successful completion (not on timeout) and when not dry_run
+        if result.status == RunbookOutcomeStatus.GENERATED and result.runbook is not None and not dry_run:
+            self.repository.write_runbook_draft(
+                suggestion_id=suggestion_id,
+                runbook=result.runbook.model_dump(mode="json"),
+            )
 
         if result.error_record is not None and not dry_run:
             self.repository.save_error(result.error_record)
