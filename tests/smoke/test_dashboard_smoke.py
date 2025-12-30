@@ -40,7 +40,7 @@ def approval_api_config():
         "base_url": api_url.rstrip("/"),
         "api_key": api_key,
         "headers": {
-            "Authorization": f"Bearer {api_key}" if api_key else None,
+            "X-API-Key": api_key if api_key else None,
             "Content-Type": "application/json",
         },
     }
