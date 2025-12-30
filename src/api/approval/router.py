@@ -18,6 +18,12 @@ from src.api.approval.models import (
     SuggestionStatus,
     SuggestionType,
     ExportFormat,
+    SuggestionListResponse,
+    SuggestionSummary,
+    SuggestionDetail,
+    PatternSummary,
+    ApprovalMetadata,
+    VersionHistoryEntry,
 )
 from fastapi.responses import PlainTextResponse, Response
 from src.api.approval.repository import (
@@ -217,3 +223,153 @@ def export_suggestion_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Export generation failed: {e}",
         )
+
+
+# =============================================================================
+# Browse Queue Endpoints (User Story 4)
+# =============================================================================
+
+
+@router.get(
+    "/suggestions",
+    response_model=SuggestionListResponse,
+    responses={
+        401: {"description": "Invalid or missing API key"},
+    },
+)
+def list_suggestions(
+    status_filter: Optional[SuggestionStatus] = Query(
+        None,
+        alias="status",
+        description="Filter by suggestion status",
+    ),
+    type_filter: Optional[SuggestionType] = Query(
+        None,
+        alias="type",
+        description="Filter by suggestion type",
+    ),
+    limit: int = Query(
+        50,
+        ge=1,
+        le=100,
+        description="Maximum number of suggestions to return",
+    ),
+    cursor: Optional[str] = Query(
+        None,
+        description="Cursor for pagination (last suggestion ID from previous page)",
+    ),
+    api_key: str = Depends(verify_api_key),
+    service: ApprovalService = Depends(get_service),
+) -> SuggestionListResponse:
+    """List suggestions with optional filters.
+
+    Returns paginated list of suggestions. Supports filtering by status and type.
+    Results are ordered by created_at descending (newest first).
+    Uses cursor-based pagination for efficient traversal.
+    """
+    suggestions, next_cursor, has_more = service.list_suggestions(
+        status=status_filter.value if status_filter else None,
+        suggestion_type=type_filter.value if type_filter else None,
+        limit=limit,
+        cursor=cursor,
+    )
+
+    # Convert to response model
+    summaries = []
+    for s in suggestions:
+        pattern = None
+        if s.get("pattern"):
+            pattern = PatternSummary(
+                failure_type=s["pattern"].get("failure_type"),
+                severity=s["pattern"].get("severity"),
+                trigger_condition=s["pattern"].get("trigger_condition"),
+            )
+
+        summaries.append(
+            SuggestionSummary(
+                suggestion_id=s["suggestion_id"],
+                type=SuggestionType(s.get("type", "eval")),
+                status=SuggestionStatus(s.get("status", "pending")),
+                created_at=datetime.fromisoformat(s["created_at"]),
+                pattern=pattern,
+            )
+        )
+
+    return SuggestionListResponse(
+        suggestions=summaries,
+        limit=limit,
+        next_cursor=next_cursor,
+        has_more=has_more,
+    )
+
+
+@router.get(
+    "/suggestions/{suggestionId}",
+    response_model=SuggestionDetail,
+    responses={
+        401: {"description": "Invalid or missing API key"},
+        404: {"description": "Suggestion not found"},
+    },
+)
+def get_suggestion_detail(
+    suggestionId: str,
+    api_key: str = Depends(verify_api_key),
+    service: ApprovalService = Depends(get_service),
+) -> SuggestionDetail:
+    """Get a single suggestion by ID.
+
+    Returns full suggestion details including version_history.
+    """
+    suggestion = service.get_suggestion(suggestionId)
+
+    if not suggestion:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Suggestion not found",
+        )
+
+    # Build pattern
+    pattern = None
+    if suggestion.get("pattern"):
+        pattern = PatternSummary(
+            failure_type=suggestion["pattern"].get("failure_type"),
+            severity=suggestion["pattern"].get("severity"),
+            trigger_condition=suggestion["pattern"].get("trigger_condition"),
+        )
+
+    # Build approval_metadata
+    approval_metadata = None
+    if suggestion.get("approval_metadata"):
+        am = suggestion["approval_metadata"]
+        approval_metadata = ApprovalMetadata(
+            actor=am.get("actor", ""),
+            action=am.get("action", ""),
+            notes=am.get("notes"),
+            reason=am.get("reason"),
+            timestamp=datetime.fromisoformat(am["timestamp"]) if am.get("timestamp") else datetime.now(),
+        )
+
+    # Build version_history
+    version_history = []
+    for entry in suggestion.get("version_history", []):
+        version_history.append(
+            VersionHistoryEntry(
+                status=entry.get("status", ""),
+                timestamp=datetime.fromisoformat(entry["timestamp"]) if entry.get("timestamp") else datetime.now(),
+                actor=entry.get("actor", ""),
+                notes=entry.get("notes"),
+            )
+        )
+
+    return SuggestionDetail(
+        suggestion_id=suggestion["suggestion_id"],
+        type=SuggestionType(suggestion.get("type", "eval")),
+        status=SuggestionStatus(suggestion.get("status", "pending")),
+        created_at=datetime.fromisoformat(suggestion["created_at"]),
+        updated_at=datetime.fromisoformat(suggestion["updated_at"]),
+        pattern=pattern,
+        suggestion_content=suggestion.get("suggestion_content"),
+        source_traces=suggestion.get("source_traces", []),
+        approval_metadata=approval_metadata,
+        version_history=version_history,
+    )

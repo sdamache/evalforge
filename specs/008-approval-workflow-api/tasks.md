@@ -102,14 +102,14 @@
 
 ### Live Integration Test (minimal mode)
 
-- [ ] T023 [P] [US4] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
+- [x] T023 [P] [US4] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
   creates 3+ test Suggestions with different statuses, calls GET /suggestions?status=pending, verifies only pending returned; tests pagination by setting limit=1 and using next_cursor
 
 ### Implementation
 
-- [ ] T024 [US4] Implement `list_suggestions()` in `src/api/approval/service.py` (apply filters, call repository with cursor-based pagination per research.md)
-- [ ] T025 [US4] Implement `GET /suggestions` endpoint in `src/api/approval/router.py` (per OpenAPI contract, query params: status, type, limit, cursor)
-- [ ] T026 [US4] Implement `GET /suggestions/{suggestionId}` endpoint in `src/api/approval/router.py` (return full SuggestionDetail including version_history)
+- [x] T024 [US4] Implement `list_suggestions()` in `src/api/approval/service.py` (apply filters, call repository with cursor-based pagination per research.md)
+- [x] T025 [US4] Implement `GET /suggestions` endpoint in `src/api/approval/router.py` (per OpenAPI contract, query params: status, type, limit, cursor)
+- [x] T026 [US4] Implement `GET /suggestions/{suggestionId}` endpoint in `src/api/approval/router.py` (return full SuggestionDetail including version_history)
 
 **Checkpoint**: Queue browsing and filtering complete.
 

@@ -495,3 +495,159 @@ class TestExportWorkflowUS3:
             params={"format": "deepeval"},
         )
         assert response.status_code == 404
+
+
+# =============================================================================
+# User Story 4: Browse Suggestion Queue Tests
+# =============================================================================
+
+
+class TestBrowseQueueUS4:
+    """Live integration tests for User Story 4: Browse Suggestion Queue."""
+
+    def test_list_suggestions_basic(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test basic listing of suggestions."""
+        # Setup: Create a test suggestion
+        create_test_suggestion(firestore_client, test_suggestion_id)
+
+        try:
+            response = client.get(
+                "/suggestions",
+                headers={"X-API-Key": api_key},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "suggestions" in data
+            assert "limit" in data
+            assert "has_more" in data
+            assert isinstance(data["suggestions"], list)
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+    def test_list_suggestions_filter_by_status(
+        self,
+        client,
+        firestore_client,
+        api_key,
+    ):
+        """Test filtering suggestions by status."""
+        # Create suggestions with different statuses
+        pending_id = f"test_sugg_pending_{uuid.uuid4().hex[:8]}"
+        approved_id = f"test_sugg_approved_{uuid.uuid4().hex[:8]}"
+
+        create_test_suggestion(firestore_client, pending_id, status="pending")
+        create_test_suggestion(firestore_client, approved_id, status="approved")
+
+        try:
+            # Filter for pending only
+            response = client.get(
+                "/suggestions",
+                headers={"X-API-Key": api_key},
+                params={"status": "pending"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+
+            # All returned suggestions should be pending
+            for s in data["suggestions"]:
+                assert s["status"] == "pending"
+
+        finally:
+            cleanup_test_suggestion(firestore_client, pending_id)
+            cleanup_test_suggestion(firestore_client, approved_id)
+
+    def test_list_suggestions_pagination(
+        self,
+        client,
+        firestore_client,
+        api_key,
+    ):
+        """Test cursor-based pagination."""
+        # Create multiple suggestions
+        ids = [f"test_sugg_page_{uuid.uuid4().hex[:8]}" for _ in range(3)]
+        for sid in ids:
+            create_test_suggestion(firestore_client, sid)
+
+        try:
+            # First page with limit=1
+            response = client.get(
+                "/suggestions",
+                headers={"X-API-Key": api_key},
+                params={"limit": 1},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["suggestions"]) == 1
+            assert data["has_more"] is True
+            assert data["next_cursor"] is not None
+
+            # Second page using cursor
+            cursor = data["next_cursor"]
+            response2 = client.get(
+                "/suggestions",
+                headers={"X-API-Key": api_key},
+                params={"limit": 1, "cursor": cursor},
+            )
+
+            assert response2.status_code == 200
+            data2 = response2.json()
+            assert len(data2["suggestions"]) == 1
+            # Should be a different suggestion
+            assert data2["suggestions"][0]["suggestion_id"] != data["suggestions"][0]["suggestion_id"]
+
+        finally:
+            for sid in ids:
+                cleanup_test_suggestion(firestore_client, sid)
+
+    def test_get_suggestion_detail(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test getting a single suggestion with full details."""
+        create_test_suggestion(firestore_client, test_suggestion_id)
+
+        try:
+            response = client.get(
+                f"/suggestions/{test_suggestion_id}",
+                headers={"X-API-Key": api_key},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+
+            assert data["suggestion_id"] == test_suggestion_id
+            assert data["type"] == "eval"
+            assert data["status"] == "pending"
+            assert "created_at" in data
+            assert "updated_at" in data
+            assert "version_history" in data
+            assert isinstance(data["version_history"], list)
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+    def test_get_suggestion_not_found(self, client, api_key):
+        """Test getting a non-existent suggestion returns 404."""
+        response = client.get(
+            "/suggestions/nonexistent_id_12345",
+            headers={"X-API-Key": api_key},
+        )
+        assert response.status_code == 404
+
+    def test_list_suggestions_requires_api_key(self, client):
+        """Test that listing suggestions requires API key."""
+        response = client.get("/suggestions")
+        assert response.status_code == 401
