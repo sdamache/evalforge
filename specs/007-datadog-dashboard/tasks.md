@@ -29,11 +29,11 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Create dashboard config loader in src/dashboard/config.py with Datadog settings
-- [ ] T006 [P] Create Datadog API client wrapper in src/dashboard/datadog_client.py
-- [ ] T007 [P] Create MetricPayload and MetricSeries dataclasses in src/dashboard/models.py
-- [ ] T008 Implement Firestore aggregation query function in src/dashboard/aggregator.py
-- [ ] T009 Add structured logging for dashboard module in src/dashboard/datadog_client.py
+- [x] T005 Create dashboard config loader in src/dashboard/config.py with Datadog settings
+- [x] T006 [P] Create Datadog API client wrapper in src/dashboard/datadog_client.py
+- [x] T007 [P] Create MetricPayload and MetricSeries dataclasses in src/dashboard/models.py
+- [x] T008 Implement Firestore aggregation query function in src/dashboard/aggregator.py
+- [x] T009 Add structured logging for dashboard module in src/dashboard/datadog_client.py
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
