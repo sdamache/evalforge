@@ -117,7 +117,8 @@ def _approve_in_transaction(
     now_iso = now.isoformat()
 
     history_entry = {
-        "status": "approved",
+        "new_status": "approved",
+        "previous_status": current_status,
         "timestamp": now_iso,
         "actor": actor,
         "notes": notes,
@@ -213,7 +214,8 @@ def _reject_in_transaction(
     now_iso = now.isoformat()
 
     history_entry = {
-        "status": "rejected",
+        "new_status": "rejected",
+        "previous_status": current_status,
         "timestamp": now_iso,
         "actor": actor,
         "notes": reason,
