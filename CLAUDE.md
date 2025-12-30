@@ -25,10 +25,11 @@ pip install -e ".[dev]"
 cp .env.example .env  # Then fill in Datadog + GCP credentials
 
 # Run services
-python -m src.ingestion.main         # Ingestion service (FastAPI) - fetches from Datadog, stores to Firestore
-python -m src.api.main               # Capture Queue API (FastAPI) - exposes failure queue and export endpoints
-python -m src.generators.runbooks.main  # Runbook Generator (FastAPI) - generates SRE runbooks from suggestions
-docker-compose up                    # Full stack with Firestore emulator
+python -m src.ingestion.main              # Ingestion service (FastAPI) - fetches from Datadog, stores to Firestore
+python -m src.api.main                    # Capture Queue API (FastAPI) - exposes failure queue and export endpoints
+python -m src.generators.runbooks.main    # Runbook Generator (FastAPI) - generates SRE runbooks from suggestions
+python -m src.generators.guardrails.main  # Guardrail generator service (FastAPI) - generates guardrail drafts
+docker-compose up                         # Full stack with Firestore emulator
 
 # Generate synthetic test traces
 python3 scripts/generate_llm_trace_samples.py --count 5
@@ -92,6 +93,19 @@ Generates operational SRE runbooks from failure patterns with 6 sections: Summar
 - `models.py`: MetricPayload, MetricSeries, SuggestionCounts dataclasses
 - `config.py`: Dashboard-specific configuration (DashboardConfig)
 
+### Guardrail Generator (`src/generators/guardrails/`)
+Generates guardrail rule drafts from guardrail-type suggestions using Gemini:
+- **main.py**: FastAPI service with endpoints: `/health`, `/guardrails/run-once`, `/guardrails/generate/{id}`, `/guardrails/{id}`
+- **guardrail_service.py**: Orchestration with batch/single generation, template fallback, overwrite protection
+- **guardrail_types.py**: Deterministic failure_type → guardrail_type mapping (7 types)
+- **gemini_client.py**: Vertex AI Gemini integration with structured JSON output
+- **yaml_export.py**: Datadog AI Guard compatible YAML export
+
+Key concepts:
+- **Failure Type Mapping**: hallucination→validation_rule, runaway_loop→rate_limit, pii_leak→redaction_rule
+- **Template Fallback**: `needs_human_input` status when Gemini unavailable or context insufficient
+- **Overwrite Protection**: edit_source flag (generated vs human) prevents overwriting human edits
+
 ### Configuration (`src/common/config.py`)
 All settings loaded from environment variables via `load_settings()`. Key configs:
 - `DATADOG_API_KEY`, `DATADOG_APP_KEY`, `DATADOG_SITE` - Datadog credentials
@@ -138,6 +152,7 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 - `evalforge_failure_patterns` (input) → `evalforge_suggestions` (output)
 
 ## Recent Changes
+- 005-guardrail-generation: Added guardrail generator service (src/generators/guardrails/) with Gemini-powered guardrail draft generation, YAML export for Datadog AI Guard
 - 007-datadog-dashboard: Added Datadog dashboard integration with metrics publisher Cloud Function
 - 006-runbook-generation: Added SRE runbook generator with Vertex AI Gemini 2.5 Flash
 - 008-approval-workflow-api: Added requests (Slack webhooks), PyYAML (export formats)

@@ -165,20 +165,20 @@
 
 **Purpose**: Improvements that affect all user stories
 
-- [ ] T020 [P] Add /health endpoint to main.py with backlog count and last run info:
+- [x] T020 [P] Add /health endpoint to main.py with backlog count and last run info:
   - Query pending guardrail suggestion count
   - Query last guardrail_run for status info
   - Include config summary (model, batch_size, cost budget)
-- [ ] T021 [P] Add structured logging throughout guardrail_service.py:
+- [x] T021 [P] Add structured logging throughout guardrail_service.py:
   - Log run_id, suggestion_id, failure_type, guardrail_type, prompt_hash
   - Log generation outcomes (generated, skipped, error)
   - Log cost/budget information when available
-- [ ] T022 Validate implementation against quickstart.md scenarios:
+- [x] T022 Validate implementation against quickstart.md scenarios:
   - Test health check endpoint
   - Test batch generation with curl
   - Test single suggestion generation
   - Test YAML export
-- [ ] T023 Update CLAUDE.md with guardrail generator commands and module info
+- [x] T023 Update CLAUDE.md with guardrail generator commands and module info
 
 ---
 
