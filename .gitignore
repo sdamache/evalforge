@@ -117,6 +117,9 @@ Thumbs.db
 # Demo data (may contain sensitive information)
 demo-data/
 
+# Local demo artifacts (video files, screenshots, notes)
+demo/
+
 # Local development artifacts
 *.local.json
 *.local.yaml

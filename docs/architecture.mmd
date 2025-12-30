@@ -1,0 +1,44 @@
+flowchart LR
+  %% Source of truth for the README architecture diagram.
+  %% Renders in GitHub-flavored Markdown (Mermaid).
+
+  subgraph Datadog
+    traces["LLM Traces"]
+    monitors["Monitors"]
+    dd_dash["Datadog Dashboard - Improvement Backlog"]
+  end
+
+  subgraph GCP["Google Cloud"]
+    subgraph CR["Cloud Run Services"]
+      ingestion["Ingestion - pulls failures"]
+      extraction["Extraction - Gemini"]
+      dedup["Deduplication - embeddings"]
+      evalgen["Eval Test Generator"]
+      guardgen["Guardrail Generator"]
+      runbookgen["Runbook Generator"]
+      api["API and Approval Workflow"]
+      metrics["Metrics Publisher"]
+    end
+
+    subgraph FS["Firestore"]
+      raw["raw_traces"]
+      patterns["failure_patterns"]
+      suggestions["suggestions"]
+    end
+
+    slack["Slack Webhook"]
+  end
+
+  traces --> ingestion --> raw
+  raw --> extraction --> patterns
+  patterns --> dedup --> suggestions
+
+  suggestions --> evalgen --> suggestions
+  suggestions --> guardgen --> suggestions
+  suggestions --> runbookgen --> suggestions
+
+  api <--> suggestions
+  api --> slack
+
+  suggestions --> metrics --> dd_dash
+  monitors --> dd_dash
