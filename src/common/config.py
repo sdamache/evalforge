@@ -358,3 +358,45 @@ def load_approval_config() -> ApprovalConfig:
         slack_webhook_url=_optional_env("SLACK_WEBHOOK_URL"),
         firestore=load_firestore_config(),
     )
+
+
+# =============================================================================
+# Runbook Draft Generator Configuration
+# =============================================================================
+
+DEFAULT_RUNBOOK_BATCH_SIZE = 20
+DEFAULT_RUNBOOK_PER_SUGGESTION_TIMEOUT_SEC = 30.0
+DEFAULT_RUNBOOK_COST_BUDGET_USD_PER_SUGGESTION = 0.10
+
+
+@dataclass
+class RunbookGeneratorSettings:
+    """Combined settings for runbook draft generator service."""
+
+    gemini: GeminiConfig
+    firestore: FirestoreConfig
+    batch_size: int
+    per_suggestion_timeout_sec: float
+    cost_budget_usd_per_suggestion: float
+    run_cost_budget_usd: Optional[float]
+
+
+def load_runbook_generator_settings() -> RunbookGeneratorSettings:
+    """Load runbook generator settings from environment variables."""
+    gemini = load_gemini_config()
+    override_max_tokens = _optional_int_env("RUNBOOK_MAX_OUTPUT_TOKENS")
+    if override_max_tokens is not None:
+        gemini.max_output_tokens = override_max_tokens
+
+    return RunbookGeneratorSettings(
+        gemini=gemini,
+        firestore=load_firestore_config(),
+        batch_size=_int_env("RUNBOOK_BATCH_SIZE", default=DEFAULT_RUNBOOK_BATCH_SIZE),
+        per_suggestion_timeout_sec=_float_env(
+            "RUNBOOK_PER_SUGGESTION_TIMEOUT_SEC", default=DEFAULT_RUNBOOK_PER_SUGGESTION_TIMEOUT_SEC
+        ),
+        cost_budget_usd_per_suggestion=_float_env(
+            "RUNBOOK_COST_BUDGET_USD_PER_SUGGESTION", default=DEFAULT_RUNBOOK_COST_BUDGET_USD_PER_SUGGESTION
+        ),
+        run_cost_budget_usd=_optional_float_env("RUNBOOK_RUN_COST_BUDGET_USD"),
+    )

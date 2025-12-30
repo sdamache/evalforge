@@ -156,3 +156,15 @@ def eval_test_errors_collection(prefix: Optional[str] = None) -> str:
     """Get the eval test generator errors collection name."""
     prefix = prefix or get_collection_prefix()
     return f"{prefix}eval_test_errors"
+
+
+def runbook_runs_collection(prefix: Optional[str] = None) -> str:
+    """Get the runbook generator run summaries collection name."""
+    prefix = prefix or get_collection_prefix()
+    return f"{prefix}runbook_runs"
+
+
+def runbook_errors_collection(prefix: Optional[str] = None) -> str:
+    """Get the runbook generator errors collection name."""
+    prefix = prefix or get_collection_prefix()
+    return f"{prefix}runbook_errors"

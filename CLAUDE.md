@@ -25,9 +25,10 @@ pip install -e ".[dev]"
 cp .env.example .env  # Then fill in Datadog + GCP credentials
 
 # Run services
-python -m src.ingestion.main    # Ingestion service (FastAPI) - fetches from Datadog, stores to Firestore
-python -m src.api.main          # Capture Queue API (FastAPI) - exposes failure queue and export endpoints
-docker-compose up               # Full stack with Firestore emulator
+python -m src.ingestion.main         # Ingestion service (FastAPI) - fetches from Datadog, stores to Firestore
+python -m src.api.main               # Capture Queue API (FastAPI) - exposes failure queue and export endpoints
+python -m src.generators.runbooks.main  # Runbook Generator (FastAPI) - generates SRE runbooks from suggestions
+docker-compose up                    # Full stack with Firestore emulator
 
 # Generate synthetic test traces
 python3 scripts/generate_llm_trace_samples.py --count 5
@@ -59,6 +60,26 @@ Tests use `responses` library to mock HTTP calls and `monkeypatch` for environme
 3. **Storage**: Writes `FailureCapture` documents to Firestore `{prefix}raw_traces` collection
 4. **API** (`src/api/`): Exposes `/capture-queue` for browsing and `/exports` for downstream systems
 5. **Dashboard** (`src/dashboard/`): Publishes metrics to Datadog for visualization in App Builder dashboard
+6. **Runbook Generator** (`src/generators/runbooks/`): Transforms runbook-type suggestions into SRE runbooks
+
+### Runbook Generator (`src/generators/runbooks/`)
+Generates operational SRE runbooks from failure patterns with 6 sections: Summary, Symptoms, Diagnosis, Mitigation, Root Cause Fix, Escalation.
+
+**Endpoints:**
+- `POST /runbooks/run-once` - Batch generation for pending runbook suggestions
+- `POST /runbooks/generate/{suggestionId}` - Single suggestion generation
+- `GET /runbooks/{suggestionId}` - Retrieve runbook with approval metadata
+- `GET /health` - Health check with backlog count
+
+**Key models** (`src/generators/runbooks/models.py`):
+- `RunbookDraft`: Core runbook with markdown_content, symptoms[], diagnosis_commands[], mitigation_steps[], escalation_criteria
+- `RunbookDraftSource`: Lineage tracking (suggestion_id, trace_ids, pattern_ids)
+- `RunbookDraftGeneratorMeta`: Generation metadata (model, prompt_hash, response_sha256)
+
+**Safety features:**
+- Human edit protection (`edit_source: human` blocks overwrite unless `forceOverwrite=true`)
+- Template fallback with `status: needs_human_input` when context is missing
+- Cost budgeting ($0.10/suggestion default)
 
 ### Key Domain Models (`src/ingestion/models.py`)
 - `FailureCapture`: Core entity storing sanitized trace with failure classification, severity, recurrence tracking, and export status
@@ -95,6 +116,11 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 - Deduplication: re-observed traces increment `recurrence_count` and append to `status_history`
 - Pagination uses `start_after(DocumentSnapshot)` pattern, returning document ID as cursor
 
+**Runbook Generator Collections:**
+- `{prefix}suggestions` - Suggestions with embedded runbooks at `suggestion_content.runbook_snippet`
+- `{prefix}runbook_runs` - Batch run summaries for observability
+- `{prefix}runbook_errors` - Per-suggestion error records for diagnostics
+
 ## Active Technologies
 - Firestore `evalforge_suggestions` collection (read-only for this feature) (007-datadog-dashboard)
 
@@ -103,6 +129,7 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 
 **Feature-specific additions**:
 - 003-suggestion-deduplication: google-cloud-aiplatform, numpy
+- 006-runbook-generation: google-genai (Vertex AI Gemini for runbook generation)
 - 007-datadog-dashboard: datadog-api-client, functions-framework
 - 008-approval-workflow-api: requests (Slack webhooks), PyYAML (export)
 
@@ -111,6 +138,7 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 
 ## Recent Changes
 - 007-datadog-dashboard: Added Datadog dashboard integration with metrics publisher Cloud Function
+- 006-runbook-generation: Added SRE runbook generator with Vertex AI Gemini 2.5 Flash
 - 008-approval-workflow-api: Added requests (Slack webhooks), PyYAML (export formats)
 - 003-suggestion-deduplication: Added google-cloud-aiplatform, numpy
 
