@@ -88,8 +88,17 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 - Pagination uses `start_after(DocumentSnapshot)` pattern, returning document ID as cursor
 
 ## Active Technologies
-- Python 3.11 + FastAPI, google-cloud-firestore, google-cloud-aiplatform, numpy, tenacity, pydantic (003-suggestion-deduplication)
-- Firestore collections `evalforge_failure_patterns` (input), `evalforge_suggestions` (output) (003-suggestion-deduplication)
+
+**Core Stack** (shared across features):
+- Python 3.11, FastAPI, google-cloud-firestore, pydantic, tenacity
+
+**Feature-specific additions**:
+- 003-suggestion-deduplication: google-cloud-aiplatform, numpy
+- 008-approval-workflow-api: requests (Slack webhooks), PyYAML (export)
+
+**Firestore Collections**:
+- `evalforge_failure_patterns` (input) → `evalforge_suggestions` (output)
 
 ## Recent Changes
-- 003-suggestion-deduplication: Added Python 3.11 + FastAPI, google-cloud-firestore, google-cloud-aiplatform, numpy, tenacity, pydantic
+- 008-approval-workflow-api: Added requests (Slack webhooks), PyYAML (export formats)
+- 003-suggestion-deduplication: Added google-cloud-aiplatform, numpy
