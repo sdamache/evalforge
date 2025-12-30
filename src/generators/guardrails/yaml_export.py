@@ -64,7 +64,8 @@ def guardrail_to_yaml(draft: GuardrailDraft) -> str:
         YAML formatted string suitable for Datadog AI Guard
     """
     yaml_dict = guardrail_to_yaml_dict(draft)
-    return yaml.dump(
+    # Use safe_dump to avoid Python-specific tags and ensure plain-data YAML
+    return yaml.safe_dump(
         yaml_dict,
         default_flow_style=False,
         sort_keys=False,

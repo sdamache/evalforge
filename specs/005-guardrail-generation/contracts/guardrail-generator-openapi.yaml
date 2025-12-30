@@ -155,7 +155,7 @@ components:
         lastPersistentRun:
           type: object
           properties:
-            run_id:
+            runId:
               type: string
             finishedAt:
               type: string

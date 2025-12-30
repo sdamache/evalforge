@@ -236,6 +236,8 @@ class GuardrailService:
 
         max_workers = min(4, max(1, picked_up_count))
         executor = ThreadPoolExecutor(max_workers=max_workers)
+        # Track cancel events for each suggestion to signal cancellation on timeout
+        cancel_events: Dict[str, threading.Event] = {}
         try:
             logger.info(
                 "guardrail_run_started",
@@ -251,6 +253,9 @@ class GuardrailService:
             )
             for suggestion in suggestions:
                 suggestion_id = suggestion.get("suggestion_id", "")
+                # Create cancel event for this suggestion
+                cancel_event = threading.Event()
+                cancel_events[suggestion_id] = cancel_event
                 future = executor.submit(
                     self._generate_for_suggestion,
                     suggestion=suggestion,
@@ -260,12 +265,15 @@ class GuardrailService:
                     force_overwrite=False,
                     skip_if_already_has_draft=suggestion_ids is None,
                     remaining_budget=remaining_budget,
+                    cancel_event=cancel_event,
                 )
                 try:
                     result: GenerateResult = future.result(
                         timeout=self.settings.per_suggestion_timeout_sec
                     )
                 except FuturesTimeoutError:
+                    # Signal cancellation to stop background Gemini calls
+                    cancel_event.set()
                     result = GenerateResult(
                         status=GuardrailOutcomeStatus.ERROR,
                         error_reason="timeout",
@@ -460,6 +468,25 @@ class GuardrailService:
                           If set, aborts before API calls or writes.
         """
         suggestion_id = suggestion.get("suggestion_id", "")
+
+        # Type enforcement: only process guardrail-type suggestions
+        suggestion_type = suggestion.get("type", "")
+        if suggestion_type != "guardrail":
+            logger.info(
+                "guardrail_skipped",
+                extra={
+                    "event": "guardrail_skipped",
+                    "run_id": run_id,
+                    "suggestion_id": suggestion_id,
+                    "reason": "wrong_suggestion_type",
+                    "suggestion_type": suggestion_type,
+                    "triggered_by": triggered_by.value,
+                },
+            )
+            return GenerateResult(
+                status=GuardrailOutcomeStatus.SKIPPED,
+                error_reason="wrong_suggestion_type",
+            )
         existing_guardrail = (
             (suggestion.get("suggestion_content") or {}).get("guardrail")
         ) or None
