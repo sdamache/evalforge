@@ -143,7 +143,7 @@ class TestApprovalWorkflowUS1:
     ):
         """Test approving a pending suggestion.
 
-        Creates a pending suggestion, calls POST /suggestions/{id}/approve,
+        Creates a pending suggestion, calls POST /approval/suggestions/{id}/approve,
         verifies status transitions to 'approved' and version_history is updated.
         """
         # Setup: Create a pending suggestion
@@ -152,7 +152,7 @@ class TestApprovalWorkflowUS1:
         try:
             # Act: Call approve endpoint
             response = client.post(
-                f"/suggestions/{test_suggestion_id}/approve",
+                f"/approval/suggestions/{test_suggestion_id}/approve",
                 headers={"X-API-Key": api_key},
                 json={"notes": "Live test approval"},
             )
@@ -188,7 +188,7 @@ class TestApprovalWorkflowUS1:
     def test_approve_requires_api_key(self, client, test_suggestion_id):
         """Test that approve endpoint requires API key."""
         response = client.post(
-            f"/suggestions/{test_suggestion_id}/approve",
+            f"/approval/suggestions/{test_suggestion_id}/approve",
             json={},
         )
         assert response.status_code == 401
@@ -196,7 +196,7 @@ class TestApprovalWorkflowUS1:
     def test_approve_nonexistent_suggestion(self, client, api_key):
         """Test approving a non-existent suggestion returns 404."""
         response = client.post(
-            "/suggestions/nonexistent_id_12345/approve",
+            "/approval/suggestions/nonexistent_id_12345/approve",
             headers={"X-API-Key": api_key},
             json={},
         )
@@ -220,7 +220,7 @@ class TestApprovalWorkflowUS1:
 
         try:
             response = client.post(
-                f"/suggestions/{test_suggestion_id}/approve",
+                f"/approval/suggestions/{test_suggestion_id}/approve",
                 headers={"X-API-Key": api_key},
                 json={},
             )
@@ -249,14 +249,14 @@ class TestRejectionWorkflowUS2:
     ):
         """Test rejecting a pending suggestion with reason.
 
-        Creates a pending suggestion, calls POST /suggestions/{id}/reject,
+        Creates a pending suggestion, calls POST /approval/suggestions/{id}/reject,
         verifies status is 'rejected' and reason is recorded.
         """
         create_test_suggestion(firestore_client, test_suggestion_id)
 
         try:
             response = client.post(
-                f"/suggestions/{test_suggestion_id}/reject",
+                f"/approval/suggestions/{test_suggestion_id}/reject",
                 headers={"X-API-Key": api_key},
                 json={"reason": "False positive - test rejection"},
             )
@@ -281,7 +281,7 @@ class TestRejectionWorkflowUS2:
     def test_reject_requires_reason(self, client, api_key, test_suggestion_id):
         """Test that reject endpoint requires a reason field."""
         response = client.post(
-            f"/suggestions/{test_suggestion_id}/reject",
+            f"/approval/suggestions/{test_suggestion_id}/reject",
             headers={"X-API-Key": api_key},
             json={},  # Missing reason
         )
@@ -304,7 +304,7 @@ class TestRejectionWorkflowUS2:
 
         try:
             response = client.post(
-                f"/suggestions/{test_suggestion_id}/reject",
+                f"/approval/suggestions/{test_suggestion_id}/reject",
                 headers={"X-API-Key": api_key},
                 json={"reason": "Second rejection attempt"},
             )
@@ -343,7 +343,7 @@ class TestExportWorkflowUS3:
         try:
             # First approve it
             approve_response = client.post(
-                f"/suggestions/{test_suggestion_id}/approve",
+                f"/approval/suggestions/{test_suggestion_id}/approve",
                 headers={"X-API-Key": api_key},
                 json={"notes": "Approving for export test"},
             )
@@ -351,7 +351,7 @@ class TestExportWorkflowUS3:
 
             # Export as deepeval
             response = client.get(
-                f"/suggestions/{test_suggestion_id}/export",
+                f"/approval/suggestions/{test_suggestion_id}/export",
                 headers={"X-API-Key": api_key},
                 params={"format": "deepeval"},
             )
@@ -393,7 +393,7 @@ class TestExportWorkflowUS3:
         try:
             # First approve it
             approve_response = client.post(
-                f"/suggestions/{test_suggestion_id}/approve",
+                f"/approval/suggestions/{test_suggestion_id}/approve",
                 headers={"X-API-Key": api_key},
                 json={},
             )
@@ -401,7 +401,7 @@ class TestExportWorkflowUS3:
 
             # Export as pytest
             response = client.get(
-                f"/suggestions/{test_suggestion_id}/export",
+                f"/approval/suggestions/{test_suggestion_id}/export",
                 headers={"X-API-Key": api_key},
                 params={"format": "pytest"},
             )
@@ -440,7 +440,7 @@ class TestExportWorkflowUS3:
         try:
             # First approve it
             approve_response = client.post(
-                f"/suggestions/{test_suggestion_id}/approve",
+                f"/approval/suggestions/{test_suggestion_id}/approve",
                 headers={"X-API-Key": api_key},
                 json={},
             )
@@ -448,7 +448,7 @@ class TestExportWorkflowUS3:
 
             # Export as yaml
             response = client.get(
-                f"/suggestions/{test_suggestion_id}/export",
+                f"/approval/suggestions/{test_suggestion_id}/export",
                 headers={"X-API-Key": api_key},
                 params={"format": "yaml"},
             )
@@ -477,7 +477,7 @@ class TestExportWorkflowUS3:
 
         try:
             response = client.get(
-                f"/suggestions/{test_suggestion_id}/export",
+                f"/approval/suggestions/{test_suggestion_id}/export",
                 headers={"X-API-Key": api_key},
                 params={"format": "deepeval"},
             )
@@ -491,7 +491,7 @@ class TestExportWorkflowUS3:
     def test_export_nonexistent_returns_404(self, client, api_key):
         """Test exporting a non-existent suggestion returns 404."""
         response = client.get(
-            "/suggestions/nonexistent_id_12345/export",
+            "/approval/suggestions/nonexistent_id_12345/export",
             headers={"X-API-Key": api_key},
             params={"format": "deepeval"},
         )
@@ -519,7 +519,7 @@ class TestBrowseQueueUS4:
 
         try:
             response = client.get(
-                "/suggestions",
+                "/approval/suggestions",
                 headers={"X-API-Key": api_key},
             )
 
@@ -550,7 +550,7 @@ class TestBrowseQueueUS4:
         try:
             # Filter for pending only
             response = client.get(
-                "/suggestions",
+                "/approval/suggestions",
                 headers={"X-API-Key": api_key},
                 params={"status": "pending"},
             )
@@ -581,7 +581,7 @@ class TestBrowseQueueUS4:
         try:
             # First page with limit=1
             response = client.get(
-                "/suggestions",
+                "/approval/suggestions",
                 headers={"X-API-Key": api_key},
                 params={"limit": 1},
             )
@@ -595,7 +595,7 @@ class TestBrowseQueueUS4:
             # Second page using cursor
             cursor = data["next_cursor"]
             response2 = client.get(
-                "/suggestions",
+                "/approval/suggestions",
                 headers={"X-API-Key": api_key},
                 params={"limit": 1, "cursor": cursor},
             )
@@ -622,7 +622,7 @@ class TestBrowseQueueUS4:
 
         try:
             response = client.get(
-                f"/suggestions/{test_suggestion_id}",
+                f"/approval/suggestions/{test_suggestion_id}",
                 headers={"X-API-Key": api_key},
             )
 
@@ -643,14 +643,14 @@ class TestBrowseQueueUS4:
     def test_get_suggestion_not_found(self, client, api_key):
         """Test getting a non-existent suggestion returns 404."""
         response = client.get(
-            "/suggestions/nonexistent_id_12345",
+            "/approval/suggestions/nonexistent_id_12345",
             headers={"X-API-Key": api_key},
         )
         assert response.status_code == 404
 
     def test_list_suggestions_requires_api_key(self, client):
         """Test that listing suggestions requires API key."""
-        response = client.get("/suggestions")
+        response = client.get("/approval/suggestions")
         assert response.status_code == 401
 
 
@@ -669,8 +669,8 @@ class TestWebhookNotificationUS5:
     """
 
     def test_webhook_test_endpoint_requires_auth(self, client):
-        """Test that /webhooks/test endpoint requires API key."""
-        response = client.post("/webhooks/test")
+        """Test that /approval/webhooks/test endpoint requires API key."""
+        response = client.post("/approval/webhooks/test")
         assert response.status_code == 401
 
     def test_webhook_test_endpoint_sends_to_slack(self, client, api_key):
@@ -680,7 +680,7 @@ class TestWebhookNotificationUS5:
         Verifies the Block Kit payload is correctly formatted and delivered.
         """
         response = client.post(
-            "/webhooks/test",
+            "/approval/webhooks/test",
             headers={"X-API-Key": api_key},
         )
 
@@ -693,7 +693,7 @@ class TestWebhookNotificationUS5:
     def test_webhook_test_endpoint_with_custom_message(self, client, api_key):
         """Test webhook test sends custom message to Slack."""
         response = client.post(
-            "/webhooks/test",
+            "/approval/webhooks/test",
             headers={"X-API-Key": api_key},
             json={"message": "🧪 EvalForge Live Test - Custom Message"},
         )
@@ -719,7 +719,7 @@ class TestWebhookNotificationUS5:
 
         try:
             response = client.post(
-                f"/suggestions/{test_suggestion_id}/approve",
+                f"/approval/suggestions/{test_suggestion_id}/approve",
                 headers={"X-API-Key": api_key},
                 json={"notes": "🧪 Live test approval - check Slack!"},
             )
@@ -749,7 +749,7 @@ class TestWebhookNotificationUS5:
 
         try:
             response = client.post(
-                f"/suggestions/{test_suggestion_id}/reject",
+                f"/approval/suggestions/{test_suggestion_id}/reject",
                 headers={"X-API-Key": api_key},
                 json={"reason": "🧪 Live test rejection - check Slack!"},
             )
@@ -770,14 +770,14 @@ class TestWebhookNotificationUS5:
 
 
 class TestHealthCheck:
-    """Live integration tests for health check endpoint."""
+    """Live integration tests for approval workflow health check endpoint."""
 
     def test_health_check_returns_ok(self, client):
-        """Test health endpoint returns ok status.
+        """Test approval workflow health endpoint returns ok status.
 
         No authentication required for health checks.
         """
-        response = client.get("/health")
+        response = client.get("/approval/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -787,8 +787,8 @@ class TestHealthCheck:
         assert isinstance(data["pendingCount"], int) or data["pendingCount"] is None
 
     def test_health_check_includes_metrics(self, client):
-        """Test health endpoint includes operational metrics."""
-        response = client.get("/health")
+        """Test approval workflow health endpoint includes operational metrics."""
+        response = client.get("/approval/health")
 
         assert response.status_code == 200
         data = response.json()

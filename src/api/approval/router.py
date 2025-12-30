@@ -403,6 +403,18 @@ def get_suggestion_detail(
             )
         )
 
+    # Normalize source_traces: deduplication service stores structured objects
+    # {trace_id, pattern_id, added_at, similarity_score}, but API returns list[str]
+    raw_source_traces = suggestion.get("source_traces", [])
+    source_traces: list[str] = []
+    for item in raw_source_traces:
+        if isinstance(item, dict):
+            # Structured entry from deduplication service
+            source_traces.append(item.get("trace_id", ""))
+        else:
+            # Already a string (test data or legacy format)
+            source_traces.append(str(item))
+
     return SuggestionDetail(
         suggestion_id=suggestion["suggestion_id"],
         type=SuggestionType(suggestion.get("type", "eval")),
@@ -411,7 +423,7 @@ def get_suggestion_detail(
         updated_at=datetime.fromisoformat(suggestion["updated_at"]),
         pattern=pattern,
         suggestion_content=suggestion.get("suggestion_content"),
-        source_traces=suggestion.get("source_traces", []),
+        source_traces=source_traces,
         approval_metadata=approval_metadata,
         version_history=version_history,
     )

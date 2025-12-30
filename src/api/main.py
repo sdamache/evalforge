@@ -21,8 +21,9 @@ from src.common.logging import get_logger, log_error
 
 app = FastAPI(title="Evalforge Capture Queue API")
 
-# Include approval workflow router
-app.include_router(approval_router)
+# Include approval workflow router with prefix to avoid /health route collision
+# The approval router has its own /health which would shadow the main API's /health
+app.include_router(approval_router, prefix="/approval")
 logger = get_logger(__name__)
 
 

@@ -48,24 +48,28 @@ docker-compose up api
 
 ## API Usage Examples
 
-### Health Check
+### Health Check (Main API)
 
 ```bash
+# Main API health (Firestore connection, backlog size)
 curl http://localhost:8000/health
+
+# Approval workflow health (pending count, last approval)
+curl http://localhost:8000/approval/health
 ```
 
 ### List Pending Suggestions
 
 ```bash
 curl -H "X-API-Key: your-secret-api-key-here" \
-  "http://localhost:8000/suggestions?status=pending&limit=10"
+  "http://localhost:8000/approval/suggestions?status=pending&limit=10"
 ```
 
 ### Get Suggestion Details
 
 ```bash
 curl -H "X-API-Key: your-secret-api-key-here" \
-  "http://localhost:8000/suggestions/sugg_xyz789"
+  "http://localhost:8000/approval/suggestions/sugg_xyz789"
 ```
 
 ### Approve a Suggestion
@@ -75,7 +79,7 @@ curl -X POST \
   -H "X-API-Key: your-secret-api-key-here" \
   -H "Content-Type: application/json" \
   -d '{"notes": "Validated with team"}' \
-  "http://localhost:8000/suggestions/sugg_xyz789/approve"
+  "http://localhost:8000/approval/suggestions/sugg_xyz789/approve"
 ```
 
 ### Reject a Suggestion
@@ -85,7 +89,7 @@ curl -X POST \
   -H "X-API-Key: your-secret-api-key-here" \
   -H "Content-Type: application/json" \
   -d '{"reason": "False positive - not actually a failure"}' \
-  "http://localhost:8000/suggestions/sugg_xyz789/reject"
+  "http://localhost:8000/approval/suggestions/sugg_xyz789/reject"
 ```
 
 ### Export Approved Suggestion
@@ -93,15 +97,15 @@ curl -X POST \
 ```bash
 # DeepEval JSON format (default)
 curl -H "X-API-Key: your-secret-api-key-here" \
-  "http://localhost:8000/suggestions/sugg_xyz789/export?format=deepeval"
+  "http://localhost:8000/approval/suggestions/sugg_xyz789/export?format=deepeval"
 
 # Pytest Python format
 curl -H "X-API-Key: your-secret-api-key-here" \
-  "http://localhost:8000/suggestions/sugg_xyz789/export?format=pytest"
+  "http://localhost:8000/approval/suggestions/sugg_xyz789/export?format=pytest"
 
 # YAML format
 curl -H "X-API-Key: your-secret-api-key-here" \
-  "http://localhost:8000/suggestions/sugg_xyz789/export?format=yaml"
+  "http://localhost:8000/approval/suggestions/sugg_xyz789/export?format=yaml"
 ```
 
 ### Test Webhook
@@ -111,7 +115,7 @@ curl -X POST \
   -H "X-API-Key: your-secret-api-key-here" \
   -H "Content-Type: application/json" \
   -d '{"message": "Test notification"}' \
-  "http://localhost:8000/webhooks/test"
+  "http://localhost:8000/approval/webhooks/test"
 ```
 
 ## Running Tests
