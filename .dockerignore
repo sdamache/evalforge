@@ -5,6 +5,12 @@
 .git/
 .gitignore
 
+# Local tooling caches / configs
+.gcloud/
+.pip-cache/
+.uv-cache/
+.uv-python/
+
 # Python
 __pycache__/
 *.pyc

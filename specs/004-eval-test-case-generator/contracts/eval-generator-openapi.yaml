@@ -1,0 +1,343 @@
+openapi: 3.0.0
+info:
+  title: Evalforge Eval Test Generator API
+  version: 0.1.0
+
+paths:
+  /health:
+    get:
+      summary: Health check for the eval test generator service
+      responses:
+        "200":
+          description: Service is healthy
+
+  /eval-tests/run-once:
+    post:
+      summary: Trigger a single batch run to generate eval test drafts for eval-type suggestions
+      description: >-
+        Selects up to `batchSize` suggestions of type `eval`, generates framework-agnostic JSON eval test drafts
+        via Gemini, writes them to `suggestion_content.eval_test`, and records a run summary.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvalTestRunRequest"
+      responses:
+        "200":
+          description: Eval test generation run completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalTestRunSummary"
+        "429":
+          description: Rate limited by Gemini
+        "500":
+          description: Internal server error
+
+  /eval-tests/generate/{suggestionId}:
+    post:
+      summary: Generate or regenerate an eval test draft for a single suggestion
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvalTestGenerateRequest"
+      responses:
+        "200":
+          description: Eval test generated or skipped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalTestGenerateResponse"
+        "404":
+          description: Suggestion not found
+        "409":
+          description: Overwrite blocked (human-edited draft without forceOverwrite)
+        "429":
+          description: Rate limited by Gemini
+        "500":
+          description: Internal server error
+
+  /eval-tests/{suggestionId}:
+    get:
+      summary: Get the current eval test draft for a suggestion (if present)
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Eval test draft found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalTestArtifactResponse"
+        "404":
+          description: Suggestion or eval test not found
+
+components:
+  schemas:
+    SuggestionStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    ApprovalMetadata:
+      type: object
+      properties:
+        actor:
+          type: string
+        action:
+          type: string
+          enum: [approved, rejected]
+        notes:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - actor
+        - action
+        - timestamp
+
+    EvalTestArtifactResponse:
+      type: object
+      description: Eval test draft plus suggestion approval metadata for downstream consumption.
+      properties:
+        suggestion_id:
+          type: string
+        suggestion_status:
+          $ref: "#/components/schemas/SuggestionStatus"
+        approval_metadata:
+          allOf:
+            - $ref: "#/components/schemas/ApprovalMetadata"
+          nullable: true
+        eval_test:
+          $ref: "#/components/schemas/EvalTestDraft"
+      required:
+        - suggestion_id
+        - suggestion_status
+        - eval_test
+
+    EvalTestRunRequest:
+      type: object
+      properties:
+        batchSize:
+          type: integer
+          minimum: 1
+          maximum: 200
+          description: Maximum number of suggestions to process in this run.
+        dryRun:
+          type: boolean
+          description: If true, compute drafts but do not write to Firestore.
+        suggestionIds:
+          type: array
+          description: Optional explicit list of suggestion IDs to process (overrides query).
+          items:
+            type: string
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+          description: Indicates whether the run was scheduled or manually triggered.
+
+    EvalTestGenerateRequest:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+          description: If true, compute draft but do not write to Firestore.
+        forceOverwrite:
+          type: boolean
+          description: If true, overwrite human-edited drafts.
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+
+    EvalTestRunSummary:
+      type: object
+      properties:
+        runId:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+        batchSize:
+          type: integer
+        pickedUpCount:
+          type: integer
+        generatedCount:
+          type: integer
+        skippedCount:
+          type: integer
+        errorCount:
+          type: integer
+        processingDurationMs:
+          type: integer
+        suggestionOutcomes:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvalTestOutcome"
+      required:
+        - runId
+        - startedAt
+        - finishedAt
+        - triggeredBy
+        - batchSize
+        - pickedUpCount
+        - generatedCount
+        - skippedCount
+        - errorCount
+        - processingDurationMs
+
+    EvalTestOutcome:
+      type: object
+      properties:
+        suggestionId:
+          type: string
+        status:
+          type: string
+          enum: [generated, skipped, error]
+        errorReason:
+          type: string
+      required:
+        - suggestionId
+        - status
+
+    EvalTestGenerateResponse:
+      type: object
+      properties:
+        suggestionId:
+          type: string
+        status:
+          type: string
+          enum: [generated, skipped]
+        evalTest:
+          $ref: "#/components/schemas/EvalTestDraft"
+      required:
+        - suggestionId
+        - status
+
+    EvalTestDraft:
+      type: object
+      description: Framework-agnostic JSON eval test draft stored on the Suggestion.
+      properties:
+        eval_test_id:
+          type: string
+        title:
+          type: string
+        rationale:
+          type: string
+        source:
+          type: object
+          properties:
+            suggestion_id:
+              type: string
+            canonical_trace_id:
+              type: string
+            canonical_pattern_id:
+              type: string
+            trace_ids:
+              type: array
+              items:
+                type: string
+            pattern_ids:
+              type: array
+              items:
+                type: string
+          required:
+            - suggestion_id
+            - canonical_trace_id
+            - canonical_pattern_id
+            - trace_ids
+            - pattern_ids
+        input:
+          type: object
+          properties:
+            prompt:
+              type: string
+            required_state:
+              type: string
+            tools_involved:
+              type: array
+              items:
+                type: string
+          required:
+            - prompt
+            - tools_involved
+        assertions:
+          type: object
+          properties:
+            required:
+              type: array
+              items:
+                type: string
+            forbidden:
+              type: array
+              items:
+                type: string
+            golden_output:
+              type: string
+            notes:
+              type: string
+          required:
+            - required
+            - forbidden
+        status:
+          type: string
+          enum: [draft, needs_human_input]
+        edit_source:
+          type: string
+          enum: [generated, human]
+        generated_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        generator_meta:
+          type: object
+          properties:
+            model:
+              type: string
+            temperature:
+              type: number
+              format: float
+            prompt_hash:
+              type: string
+            response_sha256:
+              type: string
+            run_id:
+              type: string
+          required:
+            - model
+            - temperature
+            - prompt_hash
+            - response_sha256
+            - run_id
+      required:
+        - eval_test_id
+        - title
+        - rationale
+        - source
+        - input
+        - assertions
+        - status
+        - edit_source
+        - generated_at
+        - updated_at
+        - generator_meta

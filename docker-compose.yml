@@ -100,6 +100,35 @@ services:
         condition: service_healthy
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8080
 
+  # Eval Test Generator Service - Generates eval test drafts from suggestions
+  eval-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8080"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8086
+      - GOOGLE_CLOUD_PROJECT=konveyn2ai
+      - FIRESTORE_COLLECTION_PREFIX=evalforge_
+      # Vertex AI credentials (uses application default credentials)
+      - VERTEX_AI_LOCATION=us-central1
+      - GEMINI_MODEL=gemini-2.5-flash
+      - GEMINI_TEMPERATURE=0.2
+      - GEMINI_MAX_OUTPUT_TOKENS=2048
+      # Generator config
+      - EVAL_TEST_BATCH_SIZE=20
+      - EVAL_TEST_PER_SUGGESTION_TIMEOUT_SEC=30.0
+      - EVAL_TEST_COST_BUDGET_USD_PER_SUGGESTION=0.10
+      - EVAL_TEST_RUN_COST_BUDGET_USD=2.00
+    volumes:
+      # Mount GCP credentials for Vertex AI access
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+    depends_on:
+      firestore-emulator:
+        condition: service_healthy
+    command: uvicorn src.generators.eval_tests.main:app --host 0.0.0.0 --port 8080
+
 networks:
   default:
     driver: bridge
