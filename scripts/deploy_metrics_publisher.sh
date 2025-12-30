@@ -169,8 +169,12 @@ deploy_function() {
   local temp_dir
   temp_dir=$(mktemp -d)
 
-  # Copy source files
-  cp -r src/dashboard/* "${temp_dir}/"
+  # Copy source files preserving package structure
+  # Create dashboard/ subdirectory to maintain import paths like 'from dashboard.config import ...'
+  mkdir -p "${temp_dir}/dashboard"
+  cp -r src/dashboard/* "${temp_dir}/dashboard/"
+  # Move main.py to root (Cloud Functions expects entry point at root)
+  mv "${temp_dir}/dashboard/metrics_publisher.py" "${temp_dir}/main.py"
 
   # Create requirements.txt
   cat > "${temp_dir}/requirements.txt" <<EOF
