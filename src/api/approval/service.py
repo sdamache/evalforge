@@ -5,6 +5,7 @@ Implements approve, reject, export, and list operations for suggestions.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Any, Optional
 
@@ -96,14 +97,16 @@ class ApprovalService:
             }
         )
 
-        # Trigger webhook notification (fire-and-forget via BackgroundTasks)
-        # This is called after the approval succeeds
-        await send_approval_notification(
-            suggestion_id=suggestion_id,
-            action="approved",
-            actor=actor,
-            suggestion_type=result.get("type"),
-            notes=notes,
+        # Trigger webhook notification (fire-and-forget, non-blocking)
+        # Webhook failures must not block approval response
+        asyncio.create_task(
+            send_approval_notification(
+                suggestion_id=suggestion_id,
+                action="approved",
+                actor=actor,
+                suggestion_type=result.get("type"),
+                notes=notes,
+            )
         )
 
         return result
@@ -155,13 +158,16 @@ class ApprovalService:
             }
         )
 
-        # Trigger webhook notification
-        await send_approval_notification(
-            suggestion_id=suggestion_id,
-            action="rejected",
-            actor=actor,
-            suggestion_type=result.get("type"),
-            reason=reason,
+        # Trigger webhook notification (fire-and-forget, non-blocking)
+        # Webhook failures must not block rejection response
+        asyncio.create_task(
+            send_approval_notification(
+                suggestion_id=suggestion_id,
+                action="rejected",
+                actor=actor,
+                suggestion_type=result.get("type"),
+                reason=reason,
+            )
         )
 
         return result
