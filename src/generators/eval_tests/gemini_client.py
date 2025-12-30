@@ -25,6 +25,13 @@ class GeminiAPIError(GeminiClientError):
     """Error from Gemini API call."""
 
 
+class GeminiRateLimitError(GeminiAPIError):
+    """Rate limit or quota exceeded error from Gemini API.
+
+    Callers should implement exponential backoff when catching this exception.
+    """
+
+
 class GeminiParseError(GeminiClientError):
     """Error parsing Gemini response."""
 
@@ -125,7 +132,7 @@ class GeminiClient:
             error_msg = str(exc)
 
             if "429" in error_msg or "rate limit" in error_msg.lower() or "quota" in error_msg.lower():
-                raise GeminiAPIError(f"Rate limit exceeded: {error_msg}") from exc
+                raise GeminiRateLimitError(f"Rate limit exceeded: {error_msg}") from exc
 
             if any(code in error_msg for code in ["500", "502", "503", "504"]):
                 raise GeminiAPIError(f"Transient error: {error_msg}") from exc

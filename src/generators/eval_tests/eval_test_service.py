@@ -14,7 +14,13 @@ from src.common.config import EvalTestGeneratorSettings
 from src.common.logging import get_logger
 from src.common.pii import redact_and_truncate
 from src.generators.eval_tests.firestore_repository import FirestoreRepository
-from src.generators.eval_tests.gemini_client import GeminiAPIError, GeminiClient, GeminiClientError, GeminiParseError
+from src.generators.eval_tests.gemini_client import (
+    GeminiAPIError,
+    GeminiClient,
+    GeminiClientError,
+    GeminiParseError,
+    GeminiRateLimitError,
+)
 from src.generators.eval_tests.models import (
     EditSource,
     EvalDraftStatus,
@@ -171,6 +177,10 @@ class EvalTestService:
                     remaining_budget=remaining_budget,
                 )
                 try:
+                    # Note: future.result(timeout=...) will raise FuturesTimeoutError but does NOT
+                    # cancel the underlying Gemini API call. Timed-out work may continue in the
+                    # background and still consume quota/cost. This is a known Python threading
+                    # limitation - ThreadPoolExecutor cannot interrupt running threads.
                     result: GenerateResult = future.result(timeout=self.settings.per_suggestion_timeout_sec)
                 except FuturesTimeoutError:
                     result = GenerateResult(
@@ -269,6 +279,10 @@ class EvalTestService:
         dry_run: bool,
         force_overwrite: bool,
     ) -> GenerateResult:
+        """Generate eval test draft for a single suggestion with timeout enforcement.
+
+        Uses the same per_suggestion_timeout_sec as run_batch() for consistency.
+        """
         run_id = f"run_{_now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
         suggestion = self.repository.get_suggestion(suggestion_id)
         if suggestion is None:
@@ -277,15 +291,40 @@ class EvalTestService:
                 extra={"event": "eval_test_generate_not_found", "run_id": run_id, "suggestion_id": suggestion_id},
             )
             return GenerateResult(status=EvalTestOutcomeStatus.ERROR, error_reason="not_found")
-        result = self._generate_for_suggestion(
-            suggestion=suggestion,
-            run_id=run_id,
-            triggered_by=triggered_by,
-            dry_run=dry_run,
-            force_overwrite=force_overwrite,
-            skip_if_already_has_draft=False,
-            remaining_budget=self.settings.cost_budget_usd_per_suggestion,
-        )
+
+        # Use ThreadPoolExecutor with timeout for consistency with run_batch()
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(
+                self._generate_for_suggestion,
+                suggestion=suggestion,
+                run_id=run_id,
+                triggered_by=triggered_by,
+                dry_run=dry_run,
+                force_overwrite=force_overwrite,
+                skip_if_already_has_draft=False,
+                remaining_budget=self.settings.cost_budget_usd_per_suggestion,
+            )
+            try:
+                result = future.result(timeout=self.settings.per_suggestion_timeout_sec)
+            except FuturesTimeoutError:
+                result = GenerateResult(
+                    status=EvalTestOutcomeStatus.ERROR,
+                    error_reason="timeout",
+                    error_record=EvalTestError(
+                        run_id=run_id,
+                        suggestion_id=suggestion_id,
+                        error_type=EvalTestErrorType.TIMEOUT,
+                        error_message=f"Generation exceeded {self.settings.per_suggestion_timeout_sec}s timeout.",
+                        recorded_at=_now(),
+                    ),
+                )
+        finally:
+            # Note: shutdown(wait=False) releases the thread but does NOT cancel the
+            # underlying Gemini API call. Timed-out work may continue in the background
+            # and still consume quota/cost. This is a known Python threading limitation.
+            executor.shutdown(wait=False, cancel_futures=True)
+
         if result.error_record is not None and not dry_run:
             self.repository.save_error(result.error_record)
         return result
@@ -445,6 +484,27 @@ class EvalTestService:
                 },
             )
             return GenerateResult(status=EvalTestOutcomeStatus.ERROR, error_reason="invalid_json", error_record=error)
+        except GeminiRateLimitError as exc:
+            error = EvalTestError(
+                run_id=run_id,
+                suggestion_id=suggestion_id,
+                error_type=EvalTestErrorType.VERTEX_ERROR,
+                error_message=str(exc),
+                recorded_at=_now(),
+            )
+            logger.info(
+                "eval_test_generation_error",
+                extra={
+                    "event": "eval_test_generation_error",
+                    "run_id": run_id,
+                    "suggestion_id": suggestion_id,
+                    "canonical_trace_id": canonical_trace_id,
+                    "canonical_pattern_id": canonical_pattern_id,
+                    "error_type": "rate_limit",
+                    "triggered_by": triggered_by.value,
+                },
+            )
+            return GenerateResult(status=EvalTestOutcomeStatus.ERROR, error_reason="rate_limit", error_record=error)
         except GeminiAPIError as exc:
             error = EvalTestError(
                 run_id=run_id,

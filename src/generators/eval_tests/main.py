@@ -117,6 +117,8 @@ def generate_one(suggestion_id: str, body: EvalTestGenerateRequest | None = None
             raise HTTPException(status_code=404, detail="suggestion not found")
         if result.status == EvalTestOutcomeStatus.SKIPPED and result.error_reason == "overwrite_blocked":
             raise HTTPException(status_code=409, detail="overwrite blocked")
+        if result.status == EvalTestOutcomeStatus.ERROR and result.error_reason == "rate_limit":
+            raise HTTPException(status_code=429, detail="rate limited by Gemini")
         if result.status == EvalTestOutcomeStatus.ERROR:
             raise HTTPException(status_code=500, detail=result.error_reason or "generation failed")
 
