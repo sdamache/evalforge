@@ -25,15 +25,17 @@ from src.common.logging import get_logger
 logger = get_logger(__name__)
 
 # API key header configuration
-# auto_error=True returns 401 automatically if header is missing
+# auto_error=False so we can return 401 (not 403) for missing header
 api_key_header = APIKeyHeader(
     name="X-API-Key",
     description="API key for authentication",
-    auto_error=True,
+    auto_error=False,
 )
 
 
-def verify_api_key(api_key: str = Depends(api_key_header)) -> str:
+def verify_api_key(
+    api_key: Optional[str] = Depends(api_key_header),
+) -> str:
     """Validate API key with constant-time comparison.
 
     Args:
@@ -45,6 +47,15 @@ def verify_api_key(api_key: str = Depends(api_key_header)) -> str:
     Raises:
         HTTPException: 401 Unauthorized if API key is invalid or missing.
     """
+    # Handle missing header (auto_error=False means api_key can be None)
+    if api_key is None:
+        logger.warning("Missing X-API-Key header")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing API key",
+            headers={"WWW-Authenticate": "APIKey"},
+        )
+
     config = load_approval_config()
     expected_key = config.api_key
 
