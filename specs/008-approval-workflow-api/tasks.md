@@ -123,14 +123,14 @@
 
 ### Live Integration Test (minimal mode)
 
-- [ ] T027 [P] [US5] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
+- [x] T027 [P] [US5] Extend `tests/integration/test_approval_workflow_live.py` with a live test that:
   configures a test webhook URL (if available) or verifies webhook sending is logged correctly; tests `/webhooks/test` endpoint
 
 ### Implementation
 
-- [ ] T028 [US5] Implement Block Kit payload builder in `src/api/approval/webhook.py` (header, section with suggestion details, context with timestamp per research.md)
-- [ ] T029 [US5] Implement `POST /webhooks/test` endpoint in `src/api/approval/router.py` (sends test message to configured webhook)
-- [ ] T030 [US5] Add webhook failure logging (do not block approval, log for manual retry)
+- [x] T028 [US5] Implement Block Kit payload builder in `src/api/approval/webhook.py` (header, section with suggestion details, context with timestamp per research.md)
+- [x] T029 [US5] Implement `POST /webhooks/test` endpoint in `src/api/approval/router.py` (sends test message to configured webhook)
+- [x] T030 [US5] Add webhook failure logging (do not block approval, log for manual retry)
 
 **Checkpoint**: Webhook notifications complete.
 

@@ -24,6 +24,8 @@ from src.api.approval.models import (
     PatternSummary,
     ApprovalMetadata,
     VersionHistoryEntry,
+    WebhookTestRequest,
+    WebhookTestResponse,
 )
 from fastapi.responses import PlainTextResponse, Response
 from src.api.approval.repository import (
@@ -33,6 +35,7 @@ from src.api.approval.repository import (
 )
 from src.api.approval.service import ApprovalService, SuggestionNotApprovedError
 from src.api.approval.exporters import ContentMissingError, ExportError
+from src.api.approval.webhook import send_test_notification
 from src.common.logging import get_logger
 
 logger = get_logger(__name__)
@@ -372,4 +375,41 @@ def get_suggestion_detail(
         source_traces=suggestion.get("source_traces", []),
         approval_metadata=approval_metadata,
         version_history=version_history,
+    )
+
+
+# =============================================================================
+# Webhook Endpoints (User Story 5)
+# =============================================================================
+
+
+@router.post(
+    "/webhooks/test",
+    response_model=WebhookTestResponse,
+    responses={
+        401: {"description": "Invalid or missing API key"},
+        503: {"description": "Webhook not configured or delivery failed"},
+    },
+)
+async def test_webhook(
+    request: Optional[WebhookTestRequest] = None,
+    api_key: str = Depends(verify_api_key),
+) -> WebhookTestResponse:
+    """Test webhook delivery to configured Slack channel.
+
+    Sends a test message to verify webhook configuration is working.
+    Returns success/failure status and a message.
+    """
+    message = request.message if request else None
+    success, status_message = await send_test_notification(message)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=status_message,
+        )
+
+    return WebhookTestResponse(
+        status="sent",
+        message=status_message,
     )

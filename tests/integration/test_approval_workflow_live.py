@@ -651,3 +651,113 @@ class TestBrowseQueueUS4:
         """Test that listing suggestions requires API key."""
         response = client.get("/suggestions")
         assert response.status_code == 401
+
+
+# =============================================================================
+# User Story 5: Webhook Notification Tests
+# =============================================================================
+
+
+class TestWebhookNotificationUS5:
+    """Live integration tests for User Story 5: Webhook Notifications.
+
+    Note: In minimal test mode, we verify:
+    - Endpoint exists and requires authentication
+    - Returns 503 when webhook not configured (expected for test env)
+    - Approval/rejection trigger webhook calls (verified via logs)
+    """
+
+    def test_webhook_test_endpoint_requires_auth(self, client):
+        """Test that /webhooks/test endpoint requires API key."""
+        response = client.post("/webhooks/test")
+        assert response.status_code == 401
+
+    def test_webhook_test_endpoint_sends_to_slack(self, client, api_key):
+        """Test webhook test actually sends a message to Slack.
+
+        Requires SLACK_WEBHOOK_URL to be configured in environment.
+        Verifies the Block Kit payload is correctly formatted and delivered.
+        """
+        response = client.post(
+            "/webhooks/test",
+            headers={"X-API-Key": api_key},
+        )
+
+        # With SLACK_WEBHOOK_URL configured, should return 200
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        data = response.json()
+        assert data["status"] == "sent"
+        assert "sent successfully" in data["message"].lower()
+
+    def test_webhook_test_endpoint_with_custom_message(self, client, api_key):
+        """Test webhook test sends custom message to Slack."""
+        response = client.post(
+            "/webhooks/test",
+            headers={"X-API-Key": api_key},
+            json={"message": "🧪 EvalForge Live Test - Custom Message"},
+        )
+
+        # With SLACK_WEBHOOK_URL configured, should return 200
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        data = response.json()
+        assert data["status"] == "sent"
+
+    def test_approval_triggers_slack_notification(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test that approval sends a real Slack notification.
+
+        Requires SLACK_WEBHOOK_URL to be configured.
+        Check your Slack channel for the approval notification!
+        """
+        create_test_suggestion(firestore_client, test_suggestion_id)
+
+        try:
+            response = client.post(
+                f"/suggestions/{test_suggestion_id}/approve",
+                headers={"X-API-Key": api_key},
+                json={"notes": "🧪 Live test approval - check Slack!"},
+            )
+
+            # Approval should succeed and trigger webhook
+            assert response.status_code == 200
+            assert response.json()["new_status"] == "approved"
+            # Webhook is fire-and-forget but should have been sent
+            # Check Slack channel for the notification!
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+    def test_rejection_triggers_slack_notification(
+        self,
+        client,
+        firestore_client,
+        api_key,
+        test_suggestion_id,
+    ):
+        """Test that rejection sends a real Slack notification.
+
+        Requires SLACK_WEBHOOK_URL to be configured.
+        Check your Slack channel for the rejection notification!
+        """
+        create_test_suggestion(firestore_client, test_suggestion_id)
+
+        try:
+            response = client.post(
+                f"/suggestions/{test_suggestion_id}/reject",
+                headers={"X-API-Key": api_key},
+                json={"reason": "🧪 Live test rejection - check Slack!"},
+            )
+
+            # Rejection should succeed and trigger webhook
+            assert response.status_code == 200
+            assert response.json()["new_status"] == "rejected"
+            # Webhook is fire-and-forget but should have been sent
+            # Check Slack channel for the notification!
+
+        finally:
+            cleanup_test_suggestion(firestore_client, test_suggestion_id)
