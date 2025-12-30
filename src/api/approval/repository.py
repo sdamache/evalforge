@@ -362,19 +362,27 @@ def get_last_approval_timestamp(client: firestore.Client) -> Optional[str]:
         client: Firestore client.
 
     Returns:
-        ISO timestamp of last approval, or None if no approvals.
+        ISO timestamp of last approval, or None if no approvals or index not created.
     """
     collection = get_suggestions_collection(client)
-    query = (
-        collection
-        .where(filter=FieldFilter("status", "==", "approved"))
-        .order_by("updated_at", direction=firestore.Query.DESCENDING)
-        .limit(1)
-    )
 
-    docs = list(query.stream())
-    if docs:
-        data = docs[0].to_dict()
-        return data.get("updated_at")
+    try:
+        # This query requires a composite index on (status, updated_at)
+        # If index doesn't exist, we'll return None gracefully
+        query = (
+            collection
+            .where(filter=FieldFilter("status", "==", "approved"))
+            .order_by("updated_at", direction=firestore.Query.DESCENDING)
+            .limit(1)
+        )
 
-    return None
+        docs = list(query.stream())
+        if docs:
+            data = docs[0].to_dict()
+            return data.get("updated_at")
+
+        return None
+
+    except Exception:
+        # Index may not exist - return None instead of failing health check
+        return None

@@ -22,6 +22,7 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 
 # Existing Firestore config (should already be set)
 GOOGLE_CLOUD_PROJECT=konveyn2ai
+FIRESTORE_DATABASE_ID=evalforge
 FIRESTORE_COLLECTION_PREFIX=evalforge_
 ```
 

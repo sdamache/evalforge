@@ -98,7 +98,8 @@ def create_test_suggestion(
         },
         "version_history": [
             {
-                "status": status,
+                "new_status": status,
+                "previous_status": None,
                 "timestamp": now,
                 "actor": "test-setup",
             }
@@ -174,11 +175,11 @@ class TestApprovalWorkflowUS1:
             assert updated["approval_metadata"]["action"] == "approved"
             assert updated["approval_metadata"]["notes"] == "Live test approval"
 
-            # Check version_history has new entry
+            # Check version_history has new entry (uses new_status per codebase schema)
             history = updated.get("version_history", [])
             assert len(history) >= 2  # Initial + approval
             latest = history[-1]
-            assert latest["status"] == "approved"
+            assert latest["new_status"] == "approved"
 
         finally:
             # Cleanup
@@ -761,3 +762,37 @@ class TestWebhookNotificationUS5:
 
         finally:
             cleanup_test_suggestion(firestore_client, test_suggestion_id)
+
+
+# =============================================================================
+# Health Check Tests (Phase 8)
+# =============================================================================
+
+
+class TestHealthCheck:
+    """Live integration tests for health check endpoint."""
+
+    def test_health_check_returns_ok(self, client):
+        """Test health endpoint returns ok status.
+
+        No authentication required for health checks.
+        """
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "pendingCount" in data
+        # pendingCount should be an integer (may be 0 or more)
+        assert isinstance(data["pendingCount"], int) or data["pendingCount"] is None
+
+    def test_health_check_includes_metrics(self, client):
+        """Test health endpoint includes operational metrics."""
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        data = response.json()
+        # Should include the expected fields
+        assert "status" in data
+        assert "pendingCount" in data
+        assert "lastApprovalAt" in data

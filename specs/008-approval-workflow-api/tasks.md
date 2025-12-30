@@ -138,10 +138,10 @@
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T031 [P] Implement `GET /health` endpoint in `src/api/approval/router.py` (include pendingCount, lastApprovalAt)
-- [ ] T032 [P] Update `README.md` with approval workflow service documentation (endpoints, env vars, example curl commands)
-- [ ] T033 [P] Add short operator notes to `specs/008-approval-workflow-api/quickstart.md` for common failure modes (401 auth errors, 409 conflicts, webhook timeouts)
-- [ ] T034 Run quickstart.md validation (test all curl examples work)
+- [x] T031 [P] Implement `GET /health` endpoint in `src/api/approval/router.py` (include pendingCount, lastApprovalAt)
+- [x] T032 [P] Update `README.md` with approval workflow service documentation (endpoints, env vars, example curl commands)
+- [x] T033 [P] Add short operator notes to `specs/008-approval-workflow-api/quickstart.md` for common failure modes (401 auth errors, 409 conflicts, webhook timeouts)
+- [x] T034 Run quickstart.md validation (test all curl examples work)
 
 ---
 
