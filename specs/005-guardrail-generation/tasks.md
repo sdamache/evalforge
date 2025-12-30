@@ -107,7 +107,7 @@
 
 ### Live Integration Test for User Story 2
 
-- [ ] T013 [US2] Add live test `test_generated_draft_has_justification_and_config()` to tests/integration/test_guardrail_generator_live.py:
+- [x] T013 [US2] Add live test `test_generated_draft_has_justification_and_config()` to tests/integration/test_guardrail_generator_live.py:
   - Verify `justification` field is non-empty and explains prevention mechanism
   - Verify `configuration` has concrete values (not placeholders)
   - Verify `description` explains what the guardrail prevents
@@ -115,15 +115,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Enhance prompt_templates.py to emphasize concrete configuration values:
+- [x] T014 [US2] Enhance prompt_templates.py to emphasize concrete configuration values:
   - Add explicit instruction: "Generate specific thresholds, limits, and conditions - not placeholders"
   - Include example configurations with actual values for each guardrail type
   - Add instruction for plain-language justification
-- [ ] T015 [US2] Add validation in guardrail_service.py to reject drafts with placeholder values:
+- [x] T015 [US2] Add validation in guardrail_service.py to reject drafts with placeholder values:
   - Validate configuration against type-specific schemas
   - Reject generic text like "add appropriate validation"
   - Set status to `needs_human_input` if configuration incomplete
-- [ ] T016 [US2] Add GET /guardrails/{suggestionId} endpoint to main.py:
+- [x] T016 [US2] Add GET /guardrails/{suggestionId} endpoint to main.py:
   - Return guardrail draft with suggestion_status and approval_metadata
   - Include lineage (trace_ids, pattern_ids, canonical sources)
   - Enable reviewers to see full context for approval decision

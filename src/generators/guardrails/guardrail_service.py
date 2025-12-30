@@ -118,6 +118,68 @@ def _select_canonical_pattern(
     return max(patterns, key=key)
 
 
+# Placeholder patterns that indicate incomplete configuration (T015)
+PLACEHOLDER_PATTERNS = [
+    "todo",
+    "tbd",
+    "placeholder",
+    "add appropriate",
+    "fill in",
+    "customize here",
+    "[value]",
+    "[threshold]",
+    "[configure]",
+    "appropriate value",
+    "suitable threshold",
+]
+
+
+def _contains_placeholder(text: str) -> bool:
+    """Check if text contains placeholder patterns indicating incomplete content."""
+    if not text:
+        return False
+    lower_text = text.lower()
+    return any(pattern in lower_text for pattern in PLACEHOLDER_PATTERNS)
+
+
+def _validate_configuration_completeness(
+    generated_fields: "GuardrailDraftGeneratedFields",
+) -> Tuple[bool, Optional[str]]:
+    """Validate that generated fields don't contain placeholder values.
+
+    T015: Reject drafts with placeholder values and set status to needs_human_input.
+
+    Args:
+        generated_fields: The Gemini-generated fields to validate
+
+    Returns:
+        Tuple of (is_valid, reason_if_invalid)
+    """
+    # Check justification for placeholders
+    if _contains_placeholder(generated_fields.justification):
+        return False, "justification contains placeholder text"
+
+    # Check description for placeholders
+    if _contains_placeholder(generated_fields.description):
+        return False, "description contains placeholder text"
+
+    # Check rule_name for placeholders
+    if _contains_placeholder(generated_fields.rule_name):
+        return False, "rule_name contains placeholder text"
+
+    # Check configuration values for placeholders
+    config = generated_fields.configuration or {}
+    for key, value in config.items():
+        if isinstance(value, str) and _contains_placeholder(value):
+            return False, f"configuration.{key} contains placeholder text"
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, str) and _contains_placeholder(item):
+                    return False, f"configuration.{key} contains placeholder text"
+
+    return True, None
+
+
 class GuardrailService:
     """Generate guardrail drafts for guardrail-type suggestions."""
 
@@ -656,6 +718,32 @@ class GuardrailService:
                 guardrail_type=guardrail_type.value,
                 error_reason="schema_validation",
                 error_record=error,
+            )
+
+        # T015: Validate configuration completeness (reject placeholder values)
+        is_valid, validation_reason = _validate_configuration_completeness(
+            generated_fields
+        )
+        if not is_valid:
+            logger.info(
+                "guardrail_placeholder_detected",
+                extra={
+                    "event": "guardrail_placeholder_detected",
+                    "run_id": run_id,
+                    "suggestion_id": suggestion_id,
+                    "failure_type": failure_type,
+                    "guardrail_type": guardrail_type.value,
+                    "validation_reason": validation_reason,
+                },
+            )
+            # Override status to needs_human_input
+            generated_fields = GuardrailDraftGeneratedFields(
+                rule_name=generated_fields.rule_name,
+                description=generated_fields.description,
+                justification=generated_fields.justification,
+                configuration=generated_fields.configuration,
+                estimated_prevention_rate=generated_fields.estimated_prevention_rate,
+                status=GuardrailDraftStatus.NEEDS_HUMAN_INPUT,
             )
 
         # Build draft
