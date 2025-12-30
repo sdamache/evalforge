@@ -51,6 +51,31 @@ FAILURE_TYPE_DIAGNOSTICS: Dict[str, List[str]] = {
         "curl -s observability/quality-trends | jq '.weekly_average'",
         "prometheus query 'avg(llm_quality_score) by (model)'",
     ],
+    "client_error": [
+        'datadog trace search "service:llm-agent @http.status_code:4*"',
+        "curl -s api-gateway/errors?status=4xx | jq '.recent'",
+        "grep -r 'client_error\\|validation_error' logs/ --include='*.log'",
+    ],
+    "llm_error": [
+        'datadog trace search "service:llm-agent @llm.error:true"',
+        "curl -s llm-provider/health | jq '.error_rate'",
+        "kubectl logs -l app=llm-agent --since=1h | grep -i 'llm.*error'",
+    ],
+    "wrong_tool": [
+        'datadog trace search "service:llm-agent @failure_type:wrong_tool"',
+        "curl -s tool-registry/usage | jq '.mismatched_calls'",
+        "grep -r 'tool_call_error\\|invalid_tool' logs/ --include='*.log'",
+    ],
+    "runaway_loop": [
+        'datadog trace search "service:llm-agent @failure_type:runaway_loop"',
+        "curl -s observability/recursion-depth | jq '.max_depth_exceeded'",
+        "grep -r 'max_iterations\\|loop_detected' logs/ --include='*.log'",
+    ],
+    "pii_leak": [
+        'datadog trace search "service:llm-agent @failure_type:pii_leak"',
+        "curl -s privacy-scanner/violations | jq '.recent_leaks'",
+        "grep -r 'pii_detected\\|sensitive_data' security-logs/",
+    ],
 }
 
 DEFAULT_DIAGNOSTICS = [
