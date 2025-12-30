@@ -38,12 +38,19 @@ The dashboard consists of:
 | Field | Value |
 |-------|-------|
 | **Name** | `evalforge-api` |
-| **Base URL** | `https://your-approval-api.run.app` |
-| **Authentication** | Token Auth |
-| **Token Name** | `Authorization` |
-| **Token Value** | `Bearer <your_api_key>` |
+| **Base URL** | `https://your-approval-api.run.app/approval` |
+| **Authentication** | None (use custom header instead) |
 
-5. Click **Save**
+5. Click **Headers** tab and add custom header:
+
+| Header Name | Header Value |
+|-------------|--------------|
+| `X-API-Key` | `<your_api_key>` |
+
+6. Click **Save**
+
+> **Note**: The API uses `X-API-Key` header authentication, not Bearer tokens.
+> Datadog's Token Auth sends `Authorization: Bearer ...` which won't work.
 
 ### Step 3: Create Data Query
 
