@@ -306,22 +306,22 @@ components:
     RunbookDraft:
       type: object
       required:
-        - runbookId
+        - runbook_id
         - title
         - rationale
-        - markdownContent
+        - markdown_content
         - symptoms
-        - diagnosisCommands
-        - mitigationSteps
-        - escalationCriteria
+        - diagnosis_commands
+        - mitigation_steps
+        - escalation_criteria
         - source
         - status
-        - editSource
-        - generatedAt
-        - updatedAt
-        - generatorMeta
+        - edit_source
+        - generated_at
+        - updated_at
+        - generator_meta
       properties:
-        runbookId:
+        runbook_id:
           type: string
           example: "runbook_sugg_abc123"
         title:
@@ -331,7 +331,7 @@ components:
           type: string
           description: Plain-language reasoning explaining why this runbook was generated, citing source trace
           example: "Generated from production incident dd_trace_123 where LLM agent recommended discontinued products due to stale inventory cache."
-        markdownContent:
+        markdown_content:
           type: string
           description: Full Markdown content ready for Confluence/GitHub
         symptoms:
@@ -339,55 +339,55 @@ components:
           items:
             type: string
           minItems: 1
-        diagnosisCommands:
+        diagnosis_commands:
           type: array
           items:
             type: string
           minItems: 2
           description: Specific commands/queries for diagnosis
-        mitigationSteps:
+        mitigation_steps:
           type: array
           items:
             type: string
-        escalationCriteria:
+        escalation_criteria:
           type: string
         source:
           $ref: '#/components/schemas/RunbookDraftSource'
         status:
           type: string
           enum: [draft, needs_human_input]
-        editSource:
+        edit_source:
           type: string
           enum: [generated, human]
-        generatedAt:
+        generated_at:
           type: string
           format: date-time
-        updatedAt:
+        updated_at:
           type: string
           format: date-time
-        generatorMeta:
+        generator_meta:
           $ref: '#/components/schemas/RunbookDraftGeneratorMeta'
 
     RunbookDraftSource:
       type: object
       required:
-        - suggestionId
-        - canonicalTraceId
-        - canonicalPatternId
-        - traceIds
-        - patternIds
+        - suggestion_id
+        - canonical_trace_id
+        - canonical_pattern_id
+        - trace_ids
+        - pattern_ids
       properties:
-        suggestionId:
+        suggestion_id:
           type: string
-        canonicalTraceId:
+        canonical_trace_id:
           type: string
-        canonicalPatternId:
+        canonical_pattern_id:
           type: string
-        traceIds:
+        trace_ids:
           type: array
           items:
             type: string
-        patternIds:
+        pattern_ids:
           type: array
           items:
             type: string
@@ -397,9 +397,9 @@ components:
       required:
         - model
         - temperature
-        - promptHash
-        - responseSha256
-        - runId
+        - prompt_hash
+        - response_sha256
+        - run_id
       properties:
         model:
           type: string
@@ -407,13 +407,13 @@ components:
         temperature:
           type: number
           example: 0.3
-        promptHash:
+        prompt_hash:
           type: string
           example: "sha256:abc123..."
-        responseSha256:
+        response_sha256:
           type: string
           example: "sha256:def456..."
-        runId:
+        run_id:
           type: string
           example: "run_20251230_120000_ab12cd34"
 
