@@ -30,8 +30,8 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create guardrail_types.py with GUARDRAIL_MAPPING dict (failure_type → guardrail_type) in src/generators/guardrails/guardrail_types.py
-- [ ] T005 [P] Create models.py by copying from eval_tests/models.py and adapting:
+- [x] T004 Create guardrail_types.py with GUARDRAIL_MAPPING dict (failure_type → guardrail_type) in src/generators/guardrails/guardrail_types.py
+- [x] T005 [P] Create models.py by copying from eval_tests/models.py and adapting:
   - Replace EvalTestDraft with GuardrailDraft
   - Replace EvalTestDraftSource with GuardrailDraftSource
   - Replace EvalTestDraftGeneratorMeta with GuardrailDraftGeneratorMeta
@@ -39,11 +39,11 @@
   - Add configuration dataclasses (RateLimitConfig, ContentFilterConfig, etc.)
   - Keep TriggeredBy, EditSource, error types, RunSummary pattern
   - File: src/generators/guardrails/models.py
-- [ ] T006 [P] Create gemini_client.py by copying from eval_tests/gemini_client.py and adapting:
+- [x] T006 [P] Create gemini_client.py by copying from eval_tests/gemini_client.py and adapting:
   - Change response_schema to GuardrailDraft schema
   - Keep retry/hashing logic, tenacity decorators
   - File: src/generators/guardrails/gemini_client.py
-- [ ] T007 Create prompt_templates.py with guardrail-specific prompt builder in src/generators/guardrails/prompt_templates.py:
+- [x] T007 Create prompt_templates.py with guardrail-specific prompt builder in src/generators/guardrails/prompt_templates.py:
   - Include failure type and guardrail type hint
   - Include example configurations for each guardrail type
   - Enforce JSON output via response_mime_type
