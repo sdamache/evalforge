@@ -175,8 +175,8 @@ Add the following widgets to the dashboard:
 # Ensure credentials are set
 export RUN_LIVE_TESTS=1
 
-# Run dashboard tests
-PYTHONPATH=src python -m pytest tests/integration/test_dashboard_live.py -v
+# Run metrics publisher integration tests
+PYTHONPATH=src python -m pytest tests/integration/test_metrics_publisher_live.py -v
 ```
 
 ### Manual Smoke Test
