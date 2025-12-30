@@ -81,6 +81,9 @@ class FirestoreRepository:
                 if not snapshot.exists:
                     continue
                 data = snapshot.to_dict() or {}
+                # Guard: only process runbook-type suggestions to prevent cross-artifact writes
+                if data.get("type") != "runbook":
+                    continue
                 data.setdefault("suggestion_id", snapshot.id)
                 suggestions.append(data)
             return suggestions
