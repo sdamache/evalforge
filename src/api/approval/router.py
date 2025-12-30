@@ -26,6 +26,7 @@ from src.api.approval.models import (
     VersionHistoryEntry,
     WebhookTestRequest,
     WebhookTestResponse,
+    HealthResponse,
 )
 from fastapi.responses import PlainTextResponse, Response
 from src.api.approval.repository import (
@@ -47,6 +48,44 @@ def get_service() -> ApprovalService:
     """Dependency to get ApprovalService with Firestore client."""
     client = get_firestore_client()
     return ApprovalService(client)
+
+
+# =============================================================================
+# Health Check Endpoint
+# =============================================================================
+
+
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    tags=["health"],
+)
+def health_check(
+    service: ApprovalService = Depends(get_service),
+) -> HealthResponse:
+    """Health check endpoint for the approval workflow service.
+
+    Returns service status and operational metrics:
+    - pendingCount: Number of suggestions awaiting approval
+    - lastApprovalAt: Timestamp of most recent approval action
+
+    No authentication required for health checks.
+    """
+    try:
+        stats = service.get_health_stats()
+
+        return HealthResponse(
+            status="ok",
+            pendingCount=stats.get("pendingCount"),
+            lastApprovalAt=stats.get("lastApprovalAt"),
+        )
+    except Exception as e:
+        logger.error("Health check failed", extra={"error": str(e)})
+        return HealthResponse(
+            status="degraded",
+            pendingCount=None,
+            lastApprovalAt=None,
+        )
 
 
 # =============================================================================
@@ -108,10 +147,10 @@ async def approve_suggestion(
     "/suggestions/{suggestionId}/reject",
     response_model=ApprovalResponse,
     responses={
-        400: {"description": "Missing required reason field"},
         401: {"description": "Invalid or missing API key"},
         404: {"description": "Suggestion not found"},
         409: {"description": "Suggestion is not in pending state"},
+        422: {"description": "Missing or invalid reason field"},
     },
 )
 async def reject_suggestion(
@@ -352,12 +391,12 @@ def get_suggestion_detail(
             timestamp=datetime.fromisoformat(am["timestamp"]) if am.get("timestamp") else datetime.now(),
         )
 
-    # Build version_history
+    # Build version_history (new_status is canonical, fallback to status for compat)
     version_history = []
     for entry in suggestion.get("version_history", []):
         version_history.append(
             VersionHistoryEntry(
-                status=entry.get("status", ""),
+                status=entry.get("new_status", entry.get("status", "")),
                 timestamp=datetime.fromisoformat(entry["timestamp"]) if entry.get("timestamp") else datetime.now(),
                 actor=entry.get("actor", ""),
                 notes=entry.get("notes"),
