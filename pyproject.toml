@@ -18,6 +18,7 @@ dependencies = [
   "pydantic==2.4.0",
   "datadog-api-client",
   "functions-framework",
+  "pyyaml",
 ]
 
 [project.optional-dependencies]

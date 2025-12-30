@@ -123,6 +123,7 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 
 ## Active Technologies
 - Firestore `evalforge_suggestions` collection (read-only for this feature) (007-datadog-dashboard)
+- Python 3.11 + Google Cloud client libraries (Firestore), Google Gen AI SDK (`google-genai`) for Gemini access, FastAPI (Cloud Run HTTP surface), `tenacity` (retry/backoff), Pydantic (schema validation), PyYAML (YAML export) (005-guardrail-generation)
 
 **Core Stack** (shared across features):
 - Python 3.11, FastAPI, google-cloud-firestore, pydantic, tenacity
