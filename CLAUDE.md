@@ -88,6 +88,7 @@ Documents keyed by `trace_id` in `{FIRESTORE_COLLECTION_PREFIX}raw_traces`:
 - Pagination uses `start_after(DocumentSnapshot)` pattern, returning document ID as cursor
 
 ## Active Technologies
+- Firestore `evalforge_suggestions` collection (read-only for this feature) (007-datadog-dashboard)
 
 **Core Stack** (shared across features):
 - Python 3.11, FastAPI, google-cloud-firestore, pydantic, tenacity
