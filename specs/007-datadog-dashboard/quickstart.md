@@ -69,7 +69,7 @@ functions-framework --target=publish_metrics --debug
 ### Deploy Metrics Publisher Cloud Function
 
 ```bash
-# Deploy to Cloud Functions
+# Deploy to Cloud Functions (authenticated - requires IAM for invocation)
 gcloud functions deploy evalforge-metrics-publisher \
   --runtime python311 \
   --trigger-http \
@@ -77,15 +77,32 @@ gcloud functions deploy evalforge-metrics-publisher \
   --source src/dashboard/ \
   --set-secrets DATADOG_API_KEY=DATADOG_API_KEY:latest \
   --region us-central1 \
-  --allow-unauthenticated
+  --no-allow-unauthenticated
 
-# Create Cloud Scheduler job (every 60 seconds)
+# Create a service account for Cloud Scheduler to invoke the function
+gcloud iam service-accounts create evalforge-scheduler-sa \
+  --display-name="EvalForge Scheduler Service Account" \
+  --project=konveyn2ai
+
+# Grant the service account permission to invoke the Cloud Function
+gcloud functions add-invoker-policy-binding evalforge-metrics-publisher \
+  --region=us-central1 \
+  --member="serviceAccount:evalforge-scheduler-sa@konveyn2ai.iam.gserviceaccount.com"
+
+# Create Cloud Scheduler job with OIDC authentication (every 60 seconds)
 gcloud scheduler jobs create http evalforge-metrics-job \
   --schedule="* * * * *" \
   --uri="https://us-central1-konveyn2ai.cloudfunctions.net/evalforge-metrics-publisher" \
   --http-method=POST \
-  --location=us-central1
+  --location=us-central1 \
+  --oidc-service-account-email=evalforge-scheduler-sa@konveyn2ai.iam.gserviceaccount.com \
+  --oidc-token-audience=https://us-central1-konveyn2ai.cloudfunctions.net/evalforge-metrics-publisher
 ```
+
+> **Security Note**: The function is deployed with `--no-allow-unauthenticated` to prevent
+> unauthorized access. Cloud Scheduler uses OIDC tokens to authenticate, ensuring only
+> authorized invocations can trigger the metrics publisher and protecting against
+> quota/cost abuse.
 
 ## App Builder Setup
 
