@@ -400,3 +400,47 @@ def load_runbook_generator_settings() -> RunbookGeneratorSettings:
         ),
         run_cost_budget_usd=_optional_float_env("RUNBOOK_RUN_COST_BUDGET_USD"),
     )
+
+
+# =============================================================================
+# Guardrail Generator Configuration
+# =============================================================================
+
+DEFAULT_GUARDRAIL_BATCH_SIZE = 20
+DEFAULT_GUARDRAIL_PER_SUGGESTION_TIMEOUT_SEC = 30.0
+DEFAULT_GUARDRAIL_COST_BUDGET_USD_PER_SUGGESTION = 0.10
+
+
+@dataclass
+class GuardrailGeneratorSettings:
+    """Combined settings for guardrail draft generator service."""
+
+    gemini: GeminiConfig
+    firestore: FirestoreConfig
+    batch_size: int
+    per_suggestion_timeout_sec: float
+    cost_budget_usd_per_suggestion: float
+    run_cost_budget_usd: Optional[float]
+
+
+def load_guardrail_generator_settings() -> GuardrailGeneratorSettings:
+    """Load guardrail generator settings from environment variables."""
+    gemini = load_gemini_config()
+    override_max_tokens = _optional_int_env("GUARDRAIL_MAX_OUTPUT_TOKENS")
+    if override_max_tokens is not None:
+        gemini.max_output_tokens = override_max_tokens
+
+    return GuardrailGeneratorSettings(
+        gemini=gemini,
+        firestore=load_firestore_config(),
+        batch_size=_int_env("GUARDRAIL_BATCH_SIZE", default=DEFAULT_GUARDRAIL_BATCH_SIZE),
+        per_suggestion_timeout_sec=_float_env(
+            "GUARDRAIL_PER_SUGGESTION_TIMEOUT_SEC",
+            default=DEFAULT_GUARDRAIL_PER_SUGGESTION_TIMEOUT_SEC,
+        ),
+        cost_budget_usd_per_suggestion=_float_env(
+            "GUARDRAIL_COST_BUDGET_USD_PER_SUGGESTION",
+            default=DEFAULT_GUARDRAIL_COST_BUDGET_USD_PER_SUGGESTION,
+        ),
+        run_cost_budget_usd=_optional_float_env("GUARDRAIL_RUN_COST_BUDGET_USD"),
+    )
