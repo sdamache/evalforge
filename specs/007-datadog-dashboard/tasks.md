@@ -151,7 +151,7 @@
 - [x] T034 [P] Update quickstart.md with complete deployment steps (already comprehensive)
 - [x] T035 [P] Add troubleshooting section to docs/app-builder-setup.md (already exists)
 - [x] T036 Create dashboard screenshot examples in docs/screenshots/ (deferred - ASCII layout in docs sufficient for hackathon)
-- [ ] T037 Run full smoke test: publish metrics → view dashboard → approve suggestion → verify update (requires APPROVAL_API_URL)
+- [x] T037 Run full smoke test: publish metrics → view dashboard → approve suggestion → verify update
 - [x] T038 Update CLAUDE.md with dashboard module documentation
 
 ---
