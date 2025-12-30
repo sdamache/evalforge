@@ -1,0 +1,445 @@
+openapi: 3.0.3
+info:
+  title: Guardrail Generator API
+  description: |
+    Generate guardrail rule drafts from guardrail-type suggestions using Vertex AI Gemini.
+    Follows the same patterns as the Eval Test Generator API (004).
+  version: 1.0.0
+  contact:
+    name: Evalforge Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://guardrail-generator-{project}.run.app
+    description: Cloud Run
+
+paths:
+  /health:
+    get:
+      summary: Health check with backlog info
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /guardrails/run-once:
+    post:
+      summary: Trigger batch guardrail generation
+      description: |
+        Process pending guardrail-type suggestions in batch mode.
+        Queries suggestions with type="guardrail" and status="pending".
+      operationId: runBatchGeneration
+      tags:
+        - Generation
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuardrailRunRequest'
+      responses:
+        '200':
+          description: Batch run completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardrailRunSummary'
+        '429':
+          description: Rate limit exceeded
+        '500':
+          description: Internal server error
+
+  /guardrails/generate/{suggestionId}:
+    post:
+      summary: Generate guardrail for single suggestion
+      description: |
+        Generate or regenerate guardrail draft for a specific suggestion.
+        Supports forceOverwrite to regenerate human-edited drafts.
+      operationId: generateSingle
+      tags:
+        - Generation
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The suggestion ID to generate guardrail for
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuardrailGenerateRequest'
+      responses:
+        '200':
+          description: Generation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardrailGenerateResponse'
+        '404':
+          description: Suggestion not found
+        '409':
+          description: Overwrite blocked (human-edited draft without forceOverwrite)
+        '429':
+          description: Rate limit exceeded
+        '500':
+          description: Internal server error
+
+  /guardrails/{suggestionId}:
+    get:
+      summary: Retrieve guardrail draft
+      description: |
+        Get the current guardrail draft for a suggestion along with approval metadata.
+        Supports format query param for JSON or YAML export.
+      operationId: getGuardrail
+      tags:
+        - Retrieval
+      parameters:
+        - name: suggestionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The suggestion ID
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, yaml]
+            default: json
+          description: Output format (json or yaml)
+      responses:
+        '200':
+          description: Guardrail draft found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardrailArtifactResponse'
+            application/x-yaml:
+              schema:
+                type: string
+                description: YAML-formatted guardrail configuration
+        '404':
+          description: Suggestion or guardrail draft not found
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: 1.0.0
+        backlog:
+          type: object
+          properties:
+            pendingGuardrailSuggestions:
+              type: integer
+              example: 42
+        lastPersistentRun:
+          type: object
+          properties:
+            run_id:
+              type: string
+            finishedAt:
+              type: string
+              format: date-time
+            generatedCount:
+              type: integer
+        config:
+          type: object
+          properties:
+            model:
+              type: string
+              example: gemini-2.5-flash
+            batchSize:
+              type: integer
+              example: 20
+            perSuggestionTimeoutSec:
+              type: number
+              example: 30.0
+            costBudgetUsdPerSuggestion:
+              type: number
+              example: 0.10
+
+    GuardrailRunRequest:
+      type: object
+      properties:
+        batchSize:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+          description: Maximum suggestions to process
+        dryRun:
+          type: boolean
+          default: false
+          description: If true, no Firestore writes
+        suggestionIds:
+          type: array
+          items:
+            type: string
+          description: Override query; process only these IDs
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+          default: manual
+
+    GuardrailRunSummary:
+      type: object
+      required:
+        - runId
+        - startedAt
+        - triggeredBy
+        - pickedUpCount
+        - generatedCount
+        - skippedCount
+        - errorCount
+      properties:
+        runId:
+          type: string
+          example: run_20251230_120000_ab12cd34
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+        batchSize:
+          type: integer
+        pickedUpCount:
+          type: integer
+        generatedCount:
+          type: integer
+        skippedCount:
+          type: integer
+        errorCount:
+          type: integer
+        processingDurationMs:
+          type: integer
+        suggestionOutcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuardrailOutcome'
+
+    GuardrailOutcome:
+      type: object
+      required:
+        - suggestionId
+        - status
+      properties:
+        suggestionId:
+          type: string
+        status:
+          type: string
+          enum: [generated, skipped, error]
+        errorReason:
+          type: string
+        guardrailType:
+          type: string
+
+    GuardrailGenerateRequest:
+      type: object
+      properties:
+        dryRun:
+          type: boolean
+          default: false
+        forceOverwrite:
+          type: boolean
+          default: false
+          description: Allow overwriting human-edited drafts
+        triggeredBy:
+          type: string
+          enum: [scheduled, manual]
+          default: manual
+
+    GuardrailGenerateResponse:
+      type: object
+      required:
+        - suggestionId
+        - status
+      properties:
+        suggestionId:
+          type: string
+        status:
+          type: string
+          enum: [generated, skipped]
+        guardrail:
+          $ref: '#/components/schemas/GuardrailDraft'
+
+    GuardrailArtifactResponse:
+      type: object
+      required:
+        - suggestion_id
+        - suggestion_status
+      properties:
+        suggestion_id:
+          type: string
+        suggestion_status:
+          type: string
+          enum: [pending, approved, rejected]
+        approval_metadata:
+          $ref: '#/components/schemas/ApprovalMetadata'
+        guardrail:
+          $ref: '#/components/schemas/GuardrailDraft'
+
+    ApprovalMetadata:
+      type: object
+      properties:
+        actor:
+          type: string
+        action:
+          type: string
+          enum: [approved, rejected]
+        timestamp:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    GuardrailDraft:
+      type: object
+      required:
+        - guardrail_id
+        - rule_name
+        - guardrail_type
+        - failure_type
+        - configuration
+        - description
+        - justification
+        - source
+        - status
+        - edit_source
+        - generated_at
+        - updated_at
+        - generator_meta
+      properties:
+        guardrail_id:
+          type: string
+          example: guard_sugg_abc123
+        rule_name:
+          type: string
+          example: block_runaway_api_calls
+        guardrail_type:
+          type: string
+          enum:
+            - validation_rule
+            - rate_limit
+            - content_filter
+            - redaction_rule
+            - scope_limit
+            - freshness_check
+            - input_sanitization
+        failure_type:
+          type: string
+          example: runaway_loop
+        configuration:
+          type: object
+          description: Type-specific configuration object
+          example:
+            max_calls: 10
+            window_seconds: 60
+            action: block_and_alert
+        description:
+          type: string
+          example: Prevents excessive API calls that could cause cost overruns
+        justification:
+          type: string
+          example: Production incident showed agent making 500+ API calls in 30 seconds, resulting in $47K bill. This rate limit would have capped costs at ~$50.
+        estimated_prevention_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        source:
+          $ref: '#/components/schemas/GuardrailDraftSource'
+        status:
+          type: string
+          enum: [draft, needs_human_input]
+        edit_source:
+          type: string
+          enum: [generated, human]
+        generated_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        generator_meta:
+          $ref: '#/components/schemas/GuardrailDraftGeneratorMeta'
+
+    GuardrailDraftSource:
+      type: object
+      required:
+        - suggestion_id
+        - canonical_trace_id
+        - canonical_pattern_id
+        - trace_ids
+        - pattern_ids
+      properties:
+        suggestion_id:
+          type: string
+        canonical_trace_id:
+          type: string
+        canonical_pattern_id:
+          type: string
+        trace_ids:
+          type: array
+          items:
+            type: string
+        pattern_ids:
+          type: array
+          items:
+            type: string
+
+    GuardrailDraftGeneratorMeta:
+      type: object
+      required:
+        - model
+        - temperature
+        - prompt_hash
+        - response_sha256
+        - run_id
+      properties:
+        model:
+          type: string
+          example: gemini-2.5-flash
+        temperature:
+          type: number
+          example: 0.2
+        prompt_hash:
+          type: string
+        response_sha256:
+          type: string
+        run_id:
+          type: string
+        failure_type_mapping_version:
+          type: string
+          example: "1.0"
+
+tags:
+  - name: System
+    description: Health and status endpoints
+  - name: Generation
+    description: Guardrail draft generation endpoints
+  - name: Retrieval
+    description: Guardrail draft retrieval endpoints
