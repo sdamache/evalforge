@@ -295,8 +295,10 @@ def test_get_endpoint_returns_artifact_and_redacts_basic_pii(
         assert body.get("suggestion_status") == "pending"
         eval_test = body.get("eval_test") or {}
 
-        email_re = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")
-        phone_re = re.compile(r"\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b")
+        # Regex patterns for PII detection - using raw strings with single backslashes
+        # for proper regex interpretation (e.g., \. matches literal period, \b is word boundary)
+        email_re = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+        phone_re = re.compile(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b")
 
         strings_to_check = [
             eval_test.get("title"),
