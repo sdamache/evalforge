@@ -1,6 +1,6 @@
 # Tasks: Documentation + Devpost Submission
 
-**Input**: Design documents from `/Users/neeharikavemulapati/Documents/Projects/evalforge/specs/012-devpost-submission/`  
+**Input**: Design documents from `specs/012-devpost-submission/`  
 **Prerequisites**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
 ## Format: `[ID] [P?] [Story] Description`

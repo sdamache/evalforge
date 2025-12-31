@@ -1,7 +1,7 @@
 # Implementation Plan: Documentation + Devpost Submission
 
-**Branch**: `012-devpost-submission` | **Date**: 2025-12-30 | **Spec**: `/Users/neeharikavemulapati/Documents/Projects/evalforge/specs/012-devpost-submission/spec.md`  
-**Input**: Feature specification from `/Users/neeharikavemulapati/Documents/Projects/evalforge/specs/012-devpost-submission/spec.md`
+**Branch**: `012-devpost-submission` | **Date**: 2025-12-30 | **Spec**: `specs/012-devpost-submission/spec.md`  
+**Input**: Feature specification from `specs/012-devpost-submission/spec.md`
 
 **Note**: This plan is generated via the SpecKit plan workflow and is scoped to documentation + submission artifacts (no functional code changes required).
 
