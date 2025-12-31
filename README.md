@@ -308,24 +308,6 @@ evalforge/
 └── README.md
 ```
 
-## 🎬 Demo Scenario
-
-**Before Incident-to-Insight Loop:**
-1. E-commerce agent recommends discontinued product
-2. Customer complains, support escalates
-3. Engineer investigates Datadog trace, writes incident report
-4. Three weeks later: same failure, different product
-5. No one remembers the first incident
-
-**After Incident-to-Insight Loop:**
-1. Same failure occurs
-2. Within minutes, engineer sees in dashboard:
-   - ✅ Auto-generated eval case ready to add to CI/CD
-   - ✅ Suggested guardrail: "Block recommendations for stale products"
-   - ✅ Runbook draft: "Inventory staleness failures - diagnosis steps"
-3. One-click approve → Next deployment includes the fix
-4. **Feedback loop closed. System gets stronger.**
-
 ## 🛠️ Tech Stack
 
 | Component | Technology |
