@@ -362,6 +362,8 @@ def list_suggestions(
                 type=SuggestionType(s.get("type", "eval")),
                 status=SuggestionStatus(s.get("status", "pending")),
                 severity=severity,
+                title=s.get("title"),
+                description=s.get("description"),
                 created_at=_parse_datetime(s.get("created_at")),
                 pattern=pattern,
             )
