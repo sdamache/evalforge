@@ -115,6 +115,7 @@ def _derive_failure_type_and_severity(
     has_hallucination = any("hallucination" in t.lower() for t in tags)
     has_prompt_injection = any("prompt_injection" in t.lower() or "prompt-injection" in t.lower() for t in tags)
     has_toxicity = any("toxicity" in t.lower() for t in tags)
+    has_runaway_loop = any("runaway" in t.lower() and "loop" in t.lower() for t in tags)
 
     # Determine failure_type priority order
     if has_guardrail_failure:
@@ -129,6 +130,9 @@ def _derive_failure_type_and_severity(
     elif has_hallucination:
         failure_type = "hallucination"
         severity = "high"
+    elif has_runaway_loop:
+        failure_type = "runaway_loop"
+        severity = "critical"
     elif status_code and status_code >= 500:
         failure_type = "infrastructure_error"
         severity = "high"

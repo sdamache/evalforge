@@ -73,9 +73,11 @@ def sanitize_trace(trace: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
     if user_id:
         user_hash = hash_user_id(str(user_id), salt)
 
-    # Redact free-text prompts/responses if present
-    for key in ("input", "output", "prompt", "response"):
-        if key in payload and payload[key]:
-            payload[key] = "[redacted]"
+    # NOTE: Input/output content is now preserved for extraction.
+    # PII redaction in prompts/responses is handled by extraction service if needed.
+    # The previous behavior was to redact all input/output:
+    # for key in ("input", "output", "prompt", "response"):
+    #     if key in payload and payload[key]:
+    #         payload[key] = "[redacted]"
 
     return payload, user_hash
