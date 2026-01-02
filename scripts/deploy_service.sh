@@ -3,15 +3,17 @@
 # Deploy EvalForge Service to Cloud Run (Unified Script)
 # =============================================================================
 # Purpose: Build and deploy any EvalForge service to Cloud Run.
-#          Supports: extraction, deduplication, eval_tests, guardrails, runbooks
+#          Supports: ingestion, extraction, deduplication, eval_tests, guardrails, runbooks, api
 #
 # Usage:
+#   ./scripts/deploy_service.sh ingestion
 #   ./scripts/deploy_service.sh extraction
 #   ./scripts/deploy_service.sh deduplication
 #   ./scripts/deploy_service.sh eval_tests
 #   ./scripts/deploy_service.sh guardrails
 #   ./scripts/deploy_service.sh runbooks
-#   ./scripts/deploy_service.sh all   # Deploy all services
+#   ./scripts/deploy_service.sh api
+#   ./scripts/deploy_service.sh all   # Deploy all 7 services
 #
 # Environment variables:
 #   GCP_PROJECT_ID     (optional) - defaults to konveyn2ai
@@ -36,6 +38,9 @@ SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GCP_PROJECT_ID}.iam.gserviceacc
 get_service_config() {
   local service_key="$1"
   case "${service_key}" in
+    ingestion)
+      echo "src.ingestion.main:app|Dockerfile.service|evalforge-ingestion"
+      ;;
     extraction)
       echo "src.extraction.main:app|Dockerfile.extraction|evalforge-extraction"
       ;;
@@ -50,6 +55,9 @@ get_service_config() {
       ;;
     runbooks)
       echo "src.generators.runbooks.main:app|Dockerfile.service|evalforge-runbooks"
+      ;;
+    api)
+      echo "src.api.main:app|Dockerfile.service|evalforge-api"
       ;;
     *)
       echo ""
@@ -168,7 +176,7 @@ deploy_all() {
   log_info "Deploying all services..."
   local failed=()
 
-  for service in extraction deduplication eval_tests guardrails runbooks; do
+  for service in ingestion extraction deduplication eval_tests guardrails runbooks api; do
     log_info ""
     if ! deploy_service "${service}"; then
       failed+=("${service}")
@@ -191,7 +199,7 @@ deploy_all() {
 # Main
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <service|all>"
-  echo "Services: extraction deduplication eval_tests guardrails runbooks all"
+  echo "Services: ingestion extraction deduplication eval_tests guardrails runbooks api all"
   exit 1
 fi
 
@@ -199,12 +207,12 @@ case "$1" in
   all)
     deploy_all
     ;;
-  extraction|deduplication|eval_tests|guardrails|runbooks)
+  ingestion|extraction|deduplication|eval_tests|guardrails|runbooks|api)
     deploy_service "$1"
     ;;
   *)
     echo "Unknown service: $1"
-    echo "Valid services: extraction deduplication eval_tests guardrails runbooks all"
+    echo "Valid services: ingestion extraction deduplication eval_tests guardrails runbooks api all"
     exit 1
     ;;
 esac
