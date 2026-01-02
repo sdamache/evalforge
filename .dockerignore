@@ -66,3 +66,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Local demo artifacts (can be large; never needed in images)
+demo/
+demo-data/
