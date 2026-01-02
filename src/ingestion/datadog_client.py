@@ -124,15 +124,16 @@ def _derive_failure_type_and_severity(
     elif has_prompt_injection:
         failure_type = "prompt_injection"
         severity = "critical"
+    elif has_runaway_loop:
+        # runaway_loop is critical - check before other high-severity types
+        failure_type = "runaway_loop"
+        severity = "critical"
     elif has_toxicity:
         failure_type = "toxicity"
         severity = "high"
     elif has_hallucination:
         failure_type = "hallucination"
         severity = "high"
-    elif has_runaway_loop:
-        failure_type = "runaway_loop"
-        severity = "critical"
     elif status_code and status_code >= 500:
         failure_type = "infrastructure_error"
         severity = "high"
