@@ -143,3 +143,9 @@ firestore-debug-*.log
 .pip-cache/
 .uv-cache/
 .uv-python/
+
+# =============================================================================
+# External dependencies and demo scripts (not part of main codebase)
+# =============================================================================
+external/
+external/**
