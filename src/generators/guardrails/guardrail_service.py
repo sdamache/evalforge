@@ -667,9 +667,9 @@ class GuardrailService:
             pattern_ids=pattern_ids,
         )
 
-        # Call Gemini
+        # Call Gemini with type-specific schema
         try:
-            response = self.gemini_client.generate_guardrail_draft(prompt)
+            response = self.gemini_client.generate_guardrail_draft(prompt, guardrail_type)
             generated_fields = GuardrailDraftGeneratedFields.model_validate(
                 response.parsed_json
             )
