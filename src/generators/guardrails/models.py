@@ -302,15 +302,122 @@ class GuardrailDraftGeneratedFields(BaseModel):
     status: GuardrailDraftStatus
 
 
-def get_guardrail_draft_response_schema() -> Dict[str, Any]:
-    """Return JSON schema for Gemini response_schema enforcing GuardrailDraft shape."""
+# Configuration schema definitions per guardrail type
+# These match the EXAMPLE_CONFIGURATIONS in prompt_templates.py
+CONFIGURATION_SCHEMAS: Dict[GuardrailType, Dict[str, Any]] = {
+    GuardrailType.VALIDATION_RULE: {
+        "type": "object",
+        "properties": {
+            "check_type": {"type": "string", "description": "When to check (pre_response, post_response)"},
+            "condition": {"type": "string", "description": "What to verify"},
+            "validation_source": {"type": "string", "description": "Source of truth for validation"},
+        },
+        "required": ["check_type", "condition"],
+    },
+    GuardrailType.RATE_LIMIT: {
+        "type": "object",
+        "properties": {
+            "max_calls": {"type": "integer", "description": "Maximum API calls allowed"},
+            "window_seconds": {"type": "integer", "description": "Time window in seconds"},
+            "scope": {"type": "string", "description": "Scope of rate limit (session, user, global)"},
+            "action": {"type": "string", "description": "Action on limit (block, warn, block_and_alert)"},
+        },
+        "required": ["max_calls", "window_seconds", "action"],
+    },
+    GuardrailType.CONTENT_FILTER: {
+        "type": "object",
+        "properties": {
+            "filter_type": {"type": "string", "description": "Filter scope (input, output, both)"},
+            "threshold": {"type": "number", "description": "Detection threshold 0.0-1.0"},
+            "categories": {"type": "array", "items": {"type": "string"}, "description": "Content categories to filter"},
+            "action": {"type": "string", "description": "Action on match (block, warn, redact)"},
+        },
+        "required": ["filter_type", "threshold", "categories", "action"],
+    },
+    GuardrailType.REDACTION_RULE: {
+        "type": "object",
+        "properties": {
+            "patterns": {"type": "array", "items": {"type": "string"}, "description": "PII patterns to redact (email, phone, ssn, etc.)"},
+            "custom_regex": {"type": "string", "description": "Optional custom regex pattern"},
+            "scope": {"type": "string", "description": "Where to apply (input, output, both)"},
+            "action": {"type": "string", "description": "Action (redact, block, warn)"},
+        },
+        "required": ["patterns", "scope", "action"],
+    },
+    GuardrailType.SCOPE_LIMIT: {
+        "type": "object",
+        "properties": {
+            "allowed_tools": {"type": "array", "items": {"type": "string"}, "description": "Tools explicitly allowed"},
+            "blocked_tools": {"type": "array", "items": {"type": "string"}, "description": "Tools explicitly blocked"},
+            "context_rules": {"type": "string", "description": "When to apply restrictions"},
+            "action": {"type": "string", "description": "Action on violation (block, warn)"},
+        },
+        "required": ["action"],
+    },
+    GuardrailType.FRESHNESS_CHECK: {
+        "type": "object",
+        "properties": {
+            "max_age_hours": {"type": "integer", "description": "Maximum data age in hours"},
+            "data_sources": {"type": "array", "items": {"type": "string"}, "description": "Sources to check for freshness"},
+            "action": {"type": "string", "description": "Action on stale data (warn, block, refresh)"},
+        },
+        "required": ["max_age_hours", "action"],
+    },
+    GuardrailType.INPUT_SANITIZATION: {
+        "type": "object",
+        "properties": {
+            "patterns": {"type": "array", "items": {"type": "string"}, "description": "Injection patterns to detect"},
+            "custom_patterns": {"type": "array", "items": {"type": "string"}, "description": "Optional custom detection patterns"},
+            "action": {"type": "string", "description": "Action on detection (block, sanitize, warn)"},
+        },
+        "required": ["patterns", "action"],
+    },
+}
+
+
+def get_configuration_schema_for_type(guardrail_type: GuardrailType) -> Dict[str, Any]:
+    """Get the configuration schema for a specific guardrail type.
+
+    Args:
+        guardrail_type: The guardrail type to get schema for
+
+    Returns:
+        JSON schema for the configuration object
+    """
+    return CONFIGURATION_SCHEMAS.get(
+        guardrail_type,
+        # Fallback for unknown types - validation_rule schema as default
+        CONFIGURATION_SCHEMAS[GuardrailType.VALIDATION_RULE],
+    )
+
+
+def get_guardrail_draft_response_schema(guardrail_type: Optional[GuardrailType] = None) -> Dict[str, Any]:
+    """Return JSON schema for Gemini response_schema enforcing GuardrailDraft shape.
+
+    Args:
+        guardrail_type: Optional guardrail type for type-specific configuration schema.
+                       If None, uses a generic object schema (backwards compatible).
+
+    Returns:
+        JSON schema dict for Gemini response_schema parameter
+    """
+    # Get type-specific configuration schema or generic fallback
+    if guardrail_type:
+        config_schema = get_configuration_schema_for_type(guardrail_type)
+    else:
+        # Backwards compatible: generic object schema
+        config_schema = {
+            "type": "object",
+            "description": "Guardrail-type-specific configuration with concrete values",
+        }
+
     return {
         "type": "object",
         "properties": {
             "rule_name": {"type": "string"},
             "description": {"type": "string"},
             "justification": {"type": "string"},
-            "configuration": {"type": "object"},
+            "configuration": config_schema,
             "estimated_prevention_rate": {"type": "number"},
             "status": {
                 "type": "string",

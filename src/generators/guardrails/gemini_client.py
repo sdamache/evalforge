@@ -17,6 +17,7 @@ from tenacity import (
 )
 
 from src.common.config import GeminiConfig
+from src.generators.guardrails.guardrail_types import GuardrailType
 from src.generators.guardrails.models import get_guardrail_draft_response_schema
 
 
@@ -56,7 +57,6 @@ class GeminiClient:
     def __init__(self, config: GeminiConfig):
         self.config = config
         self._client = None
-        self._response_schema = get_guardrail_draft_response_schema()
 
     def _get_client(self):
         if self._client is None:
@@ -86,11 +86,14 @@ class GeminiClient:
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
     )
-    def generate_guardrail_draft(self, prompt: str) -> GeminiResponse:
+    def generate_guardrail_draft(
+        self, prompt: str, guardrail_type: GuardrailType
+    ) -> GeminiResponse:
         """Generate a guardrail draft from the given prompt.
 
         Args:
             prompt: The fully constructed prompt for guardrail generation
+            guardrail_type: The type of guardrail to generate (determines configuration schema)
 
         Returns:
             GeminiResponse with parsed JSON guardrail draft
@@ -104,6 +107,9 @@ class GeminiClient:
 
         prompt_hash = f"sha256:{hashlib.sha256(prompt.encode('utf-8')).hexdigest()}"
 
+        # Get type-specific schema for proper configuration structure
+        response_schema = get_guardrail_draft_response_schema(guardrail_type)
+
         try:
             from google.genai import types
 
@@ -111,7 +117,7 @@ class GeminiClient:
                 temperature=self.config.temperature,
                 max_output_tokens=self.config.max_output_tokens,
                 response_mime_type="application/json",
-                response_schema=self._response_schema,
+                response_schema=response_schema,
             )
 
             response = client.models.generate_content(
@@ -131,8 +137,10 @@ class GeminiClient:
             try:
                 parsed_json = json.loads(raw_text)
             except json.JSONDecodeError as exc:
+                # Include truncated raw text for debugging
+                excerpt = raw_text[:500] if len(raw_text) > 500 else raw_text
                 raise GeminiParseError(
-                    f"Invalid JSON in Gemini response: {exc}"
+                    f"Invalid JSON in Gemini response: {exc}. Raw excerpt: {excerpt}"
                 ) from exc
 
             usage_metadata = None

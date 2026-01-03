@@ -66,10 +66,10 @@ get_service_config() {
 }
 
 # Common environment variables for all services
-COMMON_ENV_VARS="GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID},FIRESTORE_COLLECTION_PREFIX=evalforge_,VERTEX_AI_LOCATION=${GCP_REGION}"
+COMMON_ENV_VARS="GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID},FIRESTORE_COLLECTION_PREFIX=evalforge_,FIRESTORE_DATABASE_ID=evalforge,VERTEX_AI_LOCATION=${GCP_REGION}"
 
 # Generator-specific environment variables
-GENERATOR_ENV_VARS="${COMMON_ENV_VARS},GEMINI_MODEL=gemini-2.5-flash,GEMINI_TEMPERATURE=0.2,GEMINI_MAX_OUTPUT_TOKENS=2048"
+GENERATOR_ENV_VARS="${COMMON_ENV_VARS},GEMINI_MODEL=gemini-2.5-flash,GEMINI_TEMPERATURE=0.2,GEMINI_MAX_OUTPUT_TOKENS=4096"
 
 deploy_service() {
   local service_key="$1"
@@ -153,7 +153,7 @@ EOF
     --cpu=1 \
     --min-instances=0 \
     --max-instances=10 \
-    --ingress=internal-and-cloud-load-balancing \
+    --ingress=all \
     --no-allow-unauthenticated \
     --labels="managed-by=evalforge" \
     --quiet; then
