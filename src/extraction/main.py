@@ -539,33 +539,46 @@ def run_extraction(
 
 @app.get("/health")
 def health():
-    """Health check endpoint.
+    """Health check endpoint - always returns 200.
 
     Returns service status, last run info, and backlog size.
+    Uses graceful degradation if backend queries fail.
     """
+    status = "ok" if LAST_RUN_STATE.get("last_error") is None else "degraded"
+    unprocessed_count = None
+    last_run = None
+    config = None
+
     try:
         settings = load_extraction_settings()
-        repository = create_firestore_repository(settings.firestore)
-
-        unprocessed_count = repository.get_unprocessed_count()
-        last_run = repository.get_last_run_summary()
-
-        return {
-            "status": "ok" if LAST_RUN_STATE.get("last_error") is None else "degraded",
-            "lastRun": LAST_RUN_STATE,
-            "backlog": {
-                "unprocessedCount": unprocessed_count,
-            },
-            "lastPersistentRun": last_run,
-            "config": {
-                "model": settings.gemini.model,
-                "batchSize": settings.batch_size,
-                "perTraceTimeoutSec": settings.per_trace_timeout_sec,
-            },
+        config = {
+            "model": settings.gemini.model,
+            "batchSize": settings.batch_size,
+            "perTraceTimeoutSec": settings.per_trace_timeout_sec,
         }
+
+        # Optional Firestore queries - fail gracefully
+        try:
+            repository = create_firestore_repository(settings.firestore)
+            unprocessed_count = repository.get_unprocessed_count()
+            last_run = repository.get_last_run_summary()
+        except Exception as e:
+            logger.warning(f"Health check: Firestore query failed: {e}")
+            status = "degraded"
+
     except Exception as e:
-        logger.exception("health_check_failed", extra={"error": str(e)})
-        raise HTTPException(status_code=500, detail="unhealthy") from e
+        logger.warning(f"Health check: Settings load failed: {e}")
+        status = "degraded"
+
+    return {
+        "status": status,
+        "lastRun": LAST_RUN_STATE,
+        "backlog": {
+            "unprocessedCount": unprocessed_count,
+        },
+        "lastPersistentRun": last_run,
+        "config": config,
+    }
 
 
 @app.post("/extraction/run-once", status_code=202)

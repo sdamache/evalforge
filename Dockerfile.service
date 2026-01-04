@@ -1,0 +1,42 @@
+# Dockerfile for EvalForge Services (Parameterized)
+# Built for Cloud Run deployment
+#
+# Usage with Cloud Build:
+#   docker build -t IMAGE --build-arg APP_MODULE=src.extraction.main:app -f Dockerfile.service .
+#
+# Supported APP_MODULE values:
+#   - src.ingestion.main:app
+#   - src.extraction.main:app
+#   - src.deduplication.main:app
+#   - src.generators.eval_tests.main:app
+#   - src.generators.guardrails.main:app
+#   - src.generators.runbooks.main:app
+#   - src.api.main:app
+
+FROM python:3.11-slim
+
+# Build argument for the FastAPI app module
+ARG APP_MODULE=src.ingestion.main:app
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency specifications and source code
+COPY pyproject.toml ./
+COPY src/ ./src/
+
+# Install package in editable mode (includes all dependencies from pyproject.toml)
+RUN pip install --no-cache-dir -e .
+
+# Environment variables
+# PORT is automatically injected by Cloud Run (defaults to 8080)
+ENV PORT=8080
+ENV APP_MODULE=${APP_MODULE}
+
+# Expose the port (informational - Cloud Run manages this)
+EXPOSE ${PORT}
+
+# Run uvicorn server bound to 0.0.0.0:$PORT
+# Cloud Run requires binding to 0.0.0.0 (not localhost)
+# Using shell form to expand APP_MODULE variable
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port ${PORT}

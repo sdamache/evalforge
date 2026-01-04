@@ -164,31 +164,46 @@ def get_runbook(suggestion_id: str):
 
 @app.get("/health")
 def health():
-    """Health check endpoint."""
+    """Health check endpoint - always returns 200.
+
+    Uses graceful degradation if backend queries fail.
+    """
+    status = "ok"
+    backlog_pending = None
+    last_run = None
+    config = None
+
     try:
         settings = load_runbook_generator_settings()
-        service = get_service()
-        repository = service.repository
-
-        backlog_pending = repository.get_pending_runbook_suggestions_count()
-        last_run = repository.get_last_run_summary()
-
-        return {
-            "status": "ok",
-            "version": VERSION,
-            "backlog": {"pendingRunbookSuggestions": backlog_pending},
-            "lastPersistentRun": last_run,
-            "config": {
-                "model": settings.gemini.model,
-                "batchSize": settings.batch_size,
-                "perSuggestionTimeoutSec": settings.per_suggestion_timeout_sec,
-                "costBudgetUsdPerSuggestion": settings.cost_budget_usd_per_suggestion,
-                "runCostBudgetUsd": settings.run_cost_budget_usd,
-            },
+        config = {
+            "model": settings.gemini.model,
+            "batchSize": settings.batch_size,
+            "perSuggestionTimeoutSec": settings.per_suggestion_timeout_sec,
+            "costBudgetUsdPerSuggestion": settings.cost_budget_usd_per_suggestion,
+            "runCostBudgetUsd": settings.run_cost_budget_usd,
         }
-    except Exception as exc:
-        logger.exception("runbooks_health_failed", extra={"error": str(exc)})
-        raise HTTPException(status_code=500, detail="unhealthy") from exc
+
+        # Optional Firestore queries - fail gracefully
+        try:
+            service = get_service()
+            repository = service.repository
+            backlog_pending = repository.get_pending_runbook_suggestions_count()
+            last_run = repository.get_last_run_summary()
+        except Exception as e:
+            logger.warning(f"Health check: Firestore query failed: {e}")
+            status = "degraded"
+
+    except Exception as e:
+        logger.warning(f"Health check: Settings load failed: {e}")
+        status = "degraded"
+
+    return {
+        "status": status,
+        "version": VERSION,
+        "backlog": {"pendingRunbookSuggestions": backlog_pending},
+        "lastPersistentRun": last_run,
+        "config": config,
+    }
 
 
 if __name__ == "__main__":
