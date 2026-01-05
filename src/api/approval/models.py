@@ -74,10 +74,13 @@ class ApprovalResponse(BaseModel):
 
 
 class PatternSummary(BaseModel):
-    """Summary of failure pattern embedded in suggestion."""
+    """Summary of failure pattern embedded in suggestion.
+
+    Note: severity is intentionally NOT included here - it lives at the
+    suggestion level (SuggestionSummary.severity), not inside the pattern.
+    """
 
     failure_type: Optional[str] = None
-    severity: Optional[str] = None
     trigger_condition: Optional[str] = None
 
 

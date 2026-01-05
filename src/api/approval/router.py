@@ -347,14 +347,30 @@ def list_suggestions(
         if s.get("pattern"):
             pattern = PatternSummary(
                 failure_type=s["pattern"].get("failure_type"),
-                severity=s["pattern"].get("severity"),
                 trigger_condition=s["pattern"].get("trigger_condition"),
             )
 
-        # Get severity from top-level or pattern
+        # Severity lives at suggestion level (top-level), not inside pattern
         severity = s.get("severity")
-        if not severity and s.get("pattern"):
-            severity = s["pattern"].get("severity")
+
+        # TODO: Future data should have pattern.title and pattern.summary populated
+        # by the deduplication service. Current data was created from external sources
+        # (e.g., AgentErrorBench) without these fields. This fallback chain handles both.
+        # Priority: top-level > pattern > suggestion_content (type-specific)
+        title = s.get("title") or (s.get("pattern") or {}).get("title")
+        description = s.get("description") or (s.get("pattern") or {}).get("summary")
+
+        # Fallback to suggestion_content if still missing
+        if not title or not description:
+            content = s.get("suggestion_content") or {}
+            # Map suggestion type to content key
+            content_key = {"eval": "eval_test", "guardrail": "guardrail", "runbook": "runbook_snippet"}.get(s.get("type"))
+            if content_key and content.get(content_key):
+                artifact = content[content_key]
+                if not title:
+                    title = artifact.get("rule_name") or artifact.get("test_name") or artifact.get("title")
+                if not description:
+                    description = artifact.get("description")
 
         summaries.append(
             SuggestionSummary(
@@ -362,8 +378,8 @@ def list_suggestions(
                 type=SuggestionType(s.get("type", "eval")),
                 status=SuggestionStatus(s.get("status", "pending")),
                 severity=severity,
-                title=s.get("title"),
-                description=s.get("description"),
+                title=title,
+                description=description,
                 created_at=_parse_datetime(s.get("created_at")),
                 pattern=pattern,
             )
@@ -402,12 +418,11 @@ def get_suggestion_detail(
             detail="Suggestion not found",
         )
 
-    # Build pattern
+    # Build pattern (severity is at suggestion level, not inside pattern)
     pattern = None
     if suggestion.get("pattern"):
         pattern = PatternSummary(
             failure_type=suggestion["pattern"].get("failure_type"),
-            severity=suggestion["pattern"].get("severity"),
             trigger_condition=suggestion["pattern"].get("trigger_condition"),
         )
 
