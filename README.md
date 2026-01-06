@@ -25,7 +25,37 @@ When LLM agents fail in production:
 2. **🛡️ Guardrail Rules** — Suggested rules to prevent recurrence
 3. **📖 Runbook Entries** — Structured diagnosis and remediation steps
 
+## 📸 Demo Screenshots
+
+### Datadog LLM Observability - Trace View
+![Datadog LLM Traces](docs/screenshots/Datadog_LLM_Traces.png)
+*AgentErrorBench traces ingested into Datadog showing failure metadata, input/output messages, and tags*
+
+### EvalForge Approval Queue - Datadog App Builder
+![EvalForge Approval Queue](docs/screenshots/EvalForge%20Approval%20Queue.png)
+*Interactive dashboard for reviewing and approving/rejecting generated suggestions*
+
+## 🔍 Detection Rules
+
+EvalForge implements **code-based detection rules** that classify LLM failures by analyzing trace attributes (tags, status codes, quality scores). See [`src/ingestion/datadog_client.py:_derive_failure_type_and_severity()`](src/ingestion/datadog_client.py#L97) for the full implementation.
+
+**Supported failure types:** `guardrail_failure`, `prompt_injection`, `runaway_loop`, `toxicity`, `hallucination`, `infrastructure_error`, `client_error`, `quality_degradation`
+
+## 📦 Datadog App Builder Export
+
+The Datadog App Builder dashboard configuration is exported to [`datadog-exports/`](datadog-exports/):
+
+- [`Approval_Queue_app_builder_dashboard.json`](datadog-exports/Approval_Queue_app_builder_dashboard.json) - Approval workflow dashboard with approve/reject actions
+
+> **Note:** API keys in exported JSON have been replaced with `<YOUR_EVALFORGE_API_KEY>` placeholder. Update with your actual API key when importing.
+
 ## 🏗️ Architecture
+
+![Architecture](docs/screenshots/Datadog_Architecture.png)
+*End-to-end pipeline: Datadog traces → Pattern extraction → Suggestions → Approval workflow*
+
+<details>
+<summary>View Mermaid Diagram</summary>
 
 Source: `docs/architecture.mmd`
 
@@ -72,6 +102,8 @@ flowchart LR
   suggestions --> metrics --> dd_dash
   monitors --> dd_dash
 ```
+
+</details>
 
 ## 🚀 Quick Start
 
@@ -301,7 +333,6 @@ evalforge/
 ├── scripts/                # Utility scripts
 ├── .github/
 │   ├── workflows/          # CI/CD pipelines
-│   └── ISSUE_TEMPLATE/     # Issue templates
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
@@ -323,9 +354,9 @@ evalforge/
 ## 📊 Milestones
 
 - [x] Week 1: Foundation (Trace ingestion, Pattern extraction, Storage)
-- [ ] Week 2: Core Generators (Eval, Guardrail, Runbook)
-- [ ] Week 3: Integration (Dashboard, Approval API)
-- [ ] Week 4: Demo and Polish
+- [x] Week 2: Core Generators (Eval, Guardrail, Runbook)
+- [x] Week 3: Integration (Dashboard, Approval API)
+- [x] Week 4: Demo and Polish
 
 ## 🔭 What's Next
 

@@ -1,0 +1,614 @@
+{
+  "queries": [
+    {
+      "id": "d1862b2f-c01f-478e-8b2d-dcf274d77430",
+      "name": "approveRequest",
+      "type": "action",
+      "properties": {
+        "onlyTriggerManually": true,
+        "showToastOnError": true,
+        "spec": {
+          "fqn": "com.datadoghq.http.request",
+          "inputs": {
+            "body": "{}",
+            "requestHeaders": [
+              {
+                "key": "X-API-Key",
+                "value": [
+                  "<YOUR_EVALFORGE_API_KEY>"
+                ]
+              },
+              {
+                "key": "Content-Type",
+                "value": [
+                  "application/json"
+                ]
+              }
+            ],
+            "url": "${`https://evalforge-api-nfsp5dohya-uc.a.run.app/approval/suggestions/${selectedSuggestionId.value || ''}/approve`}",
+            "verb": "POST"
+          }
+        }
+      },
+      "events": [
+        {
+          "label": "Suggestion approved!",
+          "level": "success",
+          "name": "executionSuccess",
+          "type": "toastNotification"
+        },
+        {
+          "label": "${approveRequest.error?.message || 'Failed to approve suggestion!'}",
+          "level": "danger",
+          "name": "executionError",
+          "type": "toastNotification"
+        }
+      ]
+    },
+    {
+      "id": "5651d107-8e44-4cb9-8095-2520cbcc10cd",
+      "name": "rejectRequest",
+      "type": "action",
+      "properties": {
+        "onlyTriggerManually": true,
+        "showToastOnError": true,
+        "spec": {
+          "fqn": "com.datadoghq.http.request",
+          "inputs": {
+            "body": "{\"reason\": \"Rejected via dashboard\"}",
+            "requestHeaders": [
+              {
+                "key": "X-API-Key",
+                "value": [
+                  "<YOUR_EVALFORGE_API_KEY>"
+                ]
+              },
+              {
+                "key": "Content-Type",
+                "value": [
+                  "application/json"
+                ]
+              }
+            ],
+            "url": "${`https://evalforge-api-nfsp5dohya-uc.a.run.app/approval/suggestions/${selectedSuggestionId.value || ''}/reject`}",
+            "verb": "POST"
+          }
+        }
+      },
+      "events": [
+        {
+          "label": "Suggestion rejected!",
+          "level": "danger",
+          "name": "executionSuccess",
+          "type": "toastNotification"
+        },
+        {
+          "name": "executionSuccess",
+          "queryName": "makeRequest0",
+          "type": "triggerQuery"
+        },
+        {
+          "label": "${rejectRequest.error?.message || 'Failed to reject suggestion!'}",
+          "level": "danger",
+          "name": "executionError",
+          "type": "toastNotification"
+        }
+      ]
+    },
+    {
+      "id": "a15664ba-5464-4971-a94a-a1151cf11a3c",
+      "name": "Pending_Suggestions_API",
+      "type": "action",
+      "properties": {
+        "onlyTriggerManually": false,
+        "showToastOnError": true,
+        "spec": {
+          "fqn": "com.datadoghq.http.request",
+          "inputs": {
+            "requestHeaders": [
+              {
+                "key": "X-API-Key",
+                "value": [
+                  "<YOUR_EVALFORGE_API_KEY>"
+                ]
+              },
+              {
+                "key": "Content-Type",
+                "value": [
+                  "application/json"
+                ]
+              }
+            ],
+            "url": "https://evalforge-api-nfsp5dohya-uc.a.run.app/approval/suggestions",
+            "urlParams": [
+              {
+                "key": "status",
+                "value": "pending"
+              },
+              {
+                "key": "limit",
+                "value": "100"
+              }
+            ],
+            "verb": "GET"
+          }
+        }
+      }
+    },
+    {
+      "id": "763da85b-306c-48b5-8986-469e89e19347",
+      "name": "debugEvent",
+      "type": "stateVariable",
+      "properties": {}
+    },
+    {
+      "id": "b2eee078-bf47-4b8b-8e4e-df1083c99d16",
+      "name": "selectedSuggestionId",
+      "type": "stateVariable",
+      "properties": {
+        "defaultValue": "\"\""
+      }
+    },
+    {
+      "id": "d267d9fc-6958-4c0a-8c58-d495f7e4bf13",
+      "name": "makeRequest0",
+      "type": "action",
+      "properties": {
+        "onlyTriggerManually": true,
+        "showToastOnError": true,
+        "spec": {
+          "fqn": "com.datadoghq.http.request",
+          "inputs": {
+            "requestHeaders": [
+              {
+                "key": "X-API-Key",
+                "value": [
+                  "<YOUR_EVALFORGE_API_KEY>"
+                ]
+              },
+              {
+                "key": "Content-Type",
+                "value": [
+                  "application/json"
+                ]
+              }
+            ],
+            "url": "https://evalforge-api-nfsp5dohya-uc.a.run.app/approval/suggestions",
+            "urlParams": [
+              {
+                "key": "status",
+                "value": "pending"
+              },
+              {
+                "key": "limit",
+                "value": "100"
+              }
+            ],
+            "verb": "GET"
+          }
+        }
+      },
+      "events": [
+        {
+          "label": "List refreshed!",
+          "level": "success",
+          "name": "executionSuccess",
+          "type": "toastNotification"
+        }
+      ]
+    }
+  ],
+  "id": "2feb2047-4e01-4a91-9ad5-c89cc0a190d4",
+  "components": [
+    {
+      "events": [],
+      "name": "grid0",
+      "properties": {
+        "backgroundColor": "default",
+        "children": [
+          {
+            "events": [],
+            "name": "gridCell2",
+            "properties": {
+              "children": [],
+              "isVisible": "true",
+              "layout": {
+                "default": {
+                  "height": 3,
+                  "width": 4,
+                  "x": 0,
+                  "y": 203
+                }
+              }
+            },
+            "type": "gridCell"
+          },
+          {
+            "events": [],
+            "name": "gridCell3",
+            "properties": {
+              "children": [
+                {
+                  "events": [
+                    {
+                      "name": "_tableRowButtonClick",
+                      "type": "setStateVariableValue",
+                      "value": "${suggestionsTable0.selectedRow.code}",
+                      "variableName": "selectedSuggestionId"
+                    }
+                  ],
+                  "name": "suggestionsTable0",
+                  "properties": {
+                    "autoUpdateColumns": false,
+                    "columns": [
+                      {
+                        "dataPath": "suggestion_id",
+                        "formatter": {
+                          "type": "code"
+                        },
+                        "header": "ID",
+                        "isFilterable": false
+                      },
+                      {
+                        "dataPath": "title",
+                        "formatter": {
+                          "getTooltip": "${row.description}",
+                          "getValue": "${row.title}",
+                          "type": "tooltip"
+                        },
+                        "header": "TITLE",
+                        "isFilterable": true
+                      },
+                      {
+                        "dataPath": "type",
+                        "formatter": {
+                          "options": [
+                            {
+                              "level": "info",
+                              "value": "eval"
+                            },
+                            {
+                              "level": "success",
+                              "value": "runbook"
+                            }
+                          ],
+                          "type": "pill"
+                        },
+                        "header": "Type",
+                        "isFilterable": true
+                      },
+                      {
+                        "dataPath": "severity",
+                        "formatter": {
+                          "options": [
+                            {
+                              "level": "warning",
+                              "value": "high"
+                            },
+                            {
+                              "level": "neutral",
+                              "value": "low"
+                            }
+                          ],
+                          "type": "pill"
+                        },
+                        "header": "Severity",
+                        "isFilterable": true
+                      },
+                      {
+                        "dataPath": "created_at",
+                        "formatter": {
+                          "type": "relative_time"
+                        },
+                        "header": "Created",
+                        "isFilterable": false
+                      }
+                    ],
+                    "data": "${Pending_Suggestions_API.outputs.body?.suggestions || []}",
+                    "defaultSorting": [],
+                    "emptyStateCaption": "",
+                    "globalFilter": true,
+                    "hasColumnToolbar": true,
+                    "hasSortToolbar": true,
+                    "hasTimeFrameFilter": "",
+                    "isLoading": "${approveRequest.isLoading}",
+                    "isScrollable": "both",
+                    "isSubRowsEnabled": true,
+                    "isVisible": true,
+                    "isWrappable": true,
+                    "pageSize": 220,
+                    "paginationType": "client_side",
+                    "rowButtons": [
+                      {
+                        "events": [
+                          {
+                            "name": "click",
+                            "type": "setStateVariableValue",
+                            "uuid": "6e0ec738-6643-4f0e-b669-cc057a603aa4",
+                            "value": "${(suggestionsTable0.filteredData || suggestionsTable0.data || [])?.[suggestionsTable0.selectedRowIndex]?.suggestion_id}",
+                            "variableName": "selectedSuggestionId"
+                          },
+                          {
+                            "name": "click",
+                            "queryName": "approveRequest",
+                            "type": "triggerQuery",
+                            "uuid": "70d04466-806d-4f4b-8291-e9908e2a401a"
+                          }
+                        ],
+                        "name": "button1",
+                        "properties": {
+                          "iconLeft": "check-circle",
+                          "isBorderless": false,
+                          "isDisabled": false,
+                          "isPrimary": true,
+                          "isVisible": true,
+                          "label": "✅ Approve",
+                          "level": "success"
+                        },
+                        "type": "button"
+                      },
+                      {
+                        "events": [
+                          {
+                            "name": "click",
+                            "type": "setStateVariableValue",
+                            "uuid": "787d901f-d00d-456c-9da1-4684c841d400",
+                            "value": "${(suggestionsTable0.filteredData || suggestionsTable0.data || [])?.[suggestionsTable0.selectedRowIndex]?.suggestion_id}",
+                            "variableName": "selectedSuggestionId"
+                          },
+                          {
+                            "name": "click",
+                            "queryName": "rejectRequest",
+                            "type": "triggerQuery",
+                            "uuid": "2eb8c10c-f11a-4481-ac3a-433f512cb689"
+                          }
+                        ],
+                        "name": "button0",
+                        "properties": {
+                          "iconLeft": "x-circle",
+                          "isBorderless": true,
+                          "isDisabled": false,
+                          "isPrimary": true,
+                          "isVisible": true,
+                          "label": "❌ Reject",
+                          "level": "danger"
+                        },
+                        "type": "button"
+                      }
+                    ],
+                    "searchable": true,
+                    "summary": false,
+                    "title": "Pending Suggestions",
+                    "titleAlignment": "left",
+                    "titleType": "plain_text",
+                    "totalCount": 20
+                  },
+                  "type": "table"
+                }
+              ],
+              "isVisible": "true",
+              "layout": {
+                "default": {
+                  "height": 75,
+                  "width": 12,
+                  "x": 0,
+                  "y": 16
+                }
+              }
+            },
+            "type": "gridCell"
+          },
+          {
+            "events": [],
+            "name": "gridCell6",
+            "properties": {
+              "children": [
+                {
+                  "events": [],
+                  "name": "mockTable1",
+                  "properties": {
+                    "autoUpdateColumns": true,
+                    "columns": [
+                      {
+                        "dataPath": "Task Description",
+                        "formatter": {
+                          "type": "code"
+                        },
+                        "header": "TASK",
+                        "isFilterable": true
+                      },
+                      {
+                        "dataPath": "Progress",
+                        "formatter": {
+                          "type": "percent"
+                        },
+                        "header": "PROGRESS",
+                        "isFilterable": true
+                      },
+                      {
+                        "dataPath": "Priority",
+                        "formatter": {
+                          "options": [
+                            {
+                              "level": "danger",
+                              "value": "High"
+                            },
+                            {
+                              "level": "warning",
+                              "value": "Medium"
+                            }
+                          ],
+                          "type": "pill"
+                        },
+                        "header": "PRIORITY",
+                        "isFilterable": true
+                      },
+                      {
+                        "dataPath": "Assigned To",
+                        "formatter": {
+                          "type": "link"
+                        },
+                        "header": "ASSIGNEE",
+                        "isFilterable": true
+                      },
+                      {
+                        "dataPath": "Due Date",
+                        "formatter": {
+                          "format": {
+                            "dateFormat": "MMM d, yyyy"
+                          },
+                          "type": "formatted_time"
+                        },
+                        "header": "DUE",
+                        "isFilterable": true
+                      }
+                    ],
+                    "data": "${filteredTasksData.outputs}",
+                    "defaultSorting": [
+                      {
+                        "column": "Due Date",
+                        "direction": "desc"
+                      }
+                    ],
+                    "emptyStateCaption": "🎉 No tasks found. Enjoy your productivity!",
+                    "globalFilter": true,
+                    "hasColumnToolbar": true,
+                    "hasSortToolbar": true,
+                    "hasTimeFrameFilter": "Due Date",
+                    "isLoading": false,
+                    "isScrollable": "both",
+                    "isSubRowsEnabled": false,
+                    "isVisible": true,
+                    "isWrappable": true,
+                    "pageSize": 10,
+                    "paginationType": "client_side",
+                    "rowButtons": [],
+                    "searchable": true,
+                    "summary": true,
+                    "title": "Tasks & Progress",
+                    "titleAlignment": "left",
+                    "titleType": "plain_text",
+                    "totalCount": 20
+                  },
+                  "type": "table"
+                }
+              ],
+              "isVisible": "true",
+              "layout": {
+                "default": {
+                  "height": 78,
+                  "width": 12,
+                  "x": 0,
+                  "y": 96
+                }
+              }
+            },
+            "type": "gridCell"
+          },
+          {
+            "events": [],
+            "name": "gridCell7",
+            "properties": {
+              "children": [],
+              "isVisible": "true",
+              "layout": {
+                "default": {
+                  "height": 3,
+                  "width": 6,
+                  "x": 0,
+                  "y": 206
+                }
+              }
+            },
+            "type": "gridCell"
+          },
+          {
+            "events": [],
+            "name": "gridCell9",
+            "properties": {
+              "children": [],
+              "isVisible": "true",
+              "layout": {
+                "default": {
+                  "height": 3,
+                  "width": 4,
+                  "x": 0,
+                  "y": 209
+                }
+              }
+            },
+            "type": "gridCell"
+          },
+          {
+            "events": [],
+            "name": "gridCell0",
+            "properties": {
+              "children": [
+                {
+                  "events": [],
+                  "name": "text0",
+                  "properties": {
+                    "content": "# EvalForge Approval Queue  \n**Review and manage your pending approval suggestions with speed and clarity**",
+                    "contentType": "markdown",
+                    "isVisible": true,
+                    "textAlign": "center",
+                    "verticalAlign": "center"
+                  },
+                  "type": "text"
+                }
+              ],
+              "isVisible": "true",
+              "layout": {
+                "default": {
+                  "height": 15,
+                  "width": 8,
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            },
+            "type": "gridCell"
+          },
+          {
+            "events": [],
+            "name": "gridCell1",
+            "properties": {
+              "children": [],
+              "isVisible": "true",
+              "layout": {
+                "default": {
+                  "height": 7,
+                  "width": 6,
+                  "x": 0,
+                  "y": 175
+                }
+              }
+            },
+            "type": "gridCell"
+          }
+        ]
+      },
+      "type": "grid"
+    }
+  ],
+  "description": "Approve or reject EvalForge improvement suggestions",
+  "favorite": false,
+  "name": "EvalForge Approval Queue",
+  "protectionLevel": "direct_publish",
+  "rootInstanceName": "grid0",
+  "selfService": false,
+  "tags": [],
+  "deployment": {
+    "id": "2d83ba91-0eac-4d66-bb7f-08b098e44b4b",
+    "app_version_id": "496c8bfa-1c1c-4cdf-8c22-84e26e5ecf58",
+    "approved_at": "2026-01-05T05:05:30.224773Z",
+    "approving_user_id": 8492068,
+    "approving_user_uuid": "1bd3bc25-d3c2-11f0-8453-c6c233e0fc45",
+    "created_at": "2026-01-05T05:05:30.224773Z",
+    "creator_user_id": 8492068,
+    "creator_user_uuid": "1bd3bc25-d3c2-11f0-8453-c6c233e0fc45",
+    "description": null,
+    "title": null
+  },
+  "runAsUserUuid": "1bd3bc25-d3c2-11f0-8453-c6c233e0fc45"
+}
